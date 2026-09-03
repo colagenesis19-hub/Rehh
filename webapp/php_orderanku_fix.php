@@ -12,18 +12,14 @@ function orderanku_sheet_bucket(array $row): string {
         || str_contains($status, 'DONE')
         || str_contains($status, 'SELESAI')
         || str_contains($status, 'COMPLET')
-    ) {
-        return 'close';
-    }
+    ) return 'close';
 
     if (
         in_array($status, UPDATE_STATUSES, true)
         || str_contains($status, 'UPDATE')
         || str_contains($status, 'PROGRESS')
         || str_contains($status, 'PENDING')
-    ) {
-        return 'update';
-    }
+    ) return 'update';
 
     return 'open';
 }
@@ -37,7 +33,7 @@ function orderanku_find_header(array $row, array $aliases): ?int {
 }
 
 function orderanku_fetch_sheet(bool $force=false): array {
-    $cache = '/tmp/kerja-bot-orderanku-cache-v4.json';
+    $cache = '/tmp/kerja-bot-orderanku-cache-v5.json';
     if (!$force && is_file($cache) && time() - filemtime($cache) < 30) {
         $decoded = json_decode((string)file_get_contents($cache), true);
         if (is_array($decoded)) return $decoded;
@@ -46,13 +42,11 @@ function orderanku_fetch_sheet(bool $force=false): array {
     $ctx = stream_context_create([
         'http' => [
             'timeout' => 20,
-            'header' => "User-Agent: Kerja-Bot-PHP/1.0\r\n",
+            'header' => "User-Agent: INJOKO-Orderanku/1.0\r\n",
         ],
     ]);
     $raw = @file_get_contents(sheet_csv_url(), false, $ctx);
-    if ($raw === false || trim($raw) === '') {
-        throw new RuntimeException('Google Sheets tidak dapat dibaca.');
-    }
+    if ($raw === false || trim($raw) === '') throw new RuntimeException('Google Sheets INJOKO tidak dapat dibaca.');
 
     $fp = fopen('php://temp', 'r+');
     fwrite($fp, preg_replace('/^\xEF\xBB\xBF/', '', $raw));
@@ -66,44 +60,22 @@ function orderanku_fetch_sheet(bool $force=false): array {
     $cols = [];
     foreach (array_slice($rows, 0, 20, true) as $i => $row) {
         $candidate = [];
-        foreach ($aliases as $key => $opts) {
-            $candidate[$key] = orderanku_find_header($row, $opts);
-        }
-
-        // ORDER sheet has more than one status source. STATUS is the manual/final
-        // order state, while STATUS TACPRO is the operational state used when the
-        // manual STATUS cell is still blank. Keep both instead of treating blank
-        // STATUS as OPEN.
-        $candidate['status_tacpro'] = orderanku_find_header($row, [
-            'STATUS TACPRO', 'STATUS TACTICAL', 'TACTICAL STATUS',
-        ]);
-        $candidate['status_insera'] = orderanku_find_header($row, [
-            'STATUS INSERA TODAY', 'STATUS INSERA', 'INSERA STATUS',
-        ]);
-
-        if ($candidate['service_number'] !== null && (
-            $candidate['status'] !== null
-            || $candidate['status_tacpro'] !== null
-            || $candidate['status_insera'] !== null
-        )) {
+        foreach ($aliases as $key => $opts) $candidate[$key] = orderanku_find_header($row, $opts);
+        $candidate['status_tacpro'] = orderanku_find_header($row, ['STATUS TACPRO', 'STATUS TACTICAL', 'TACTICAL STATUS']);
+        $candidate['status_insera'] = orderanku_find_header($row, ['STATUS INSERA TODAY', 'STATUS INSERA', 'INSERA STATUS']);
+        if ($candidate['service_number'] !== null && ($candidate['status'] !== null || $candidate['status_tacpro'] !== null || $candidate['status_insera'] !== null)) {
             $headerIndex = $i;
             $cols = $candidate;
             break;
         }
     }
-    if ($headerIndex < 0) {
-        throw new RuntimeException('Kolom INET/status tidak ditemukan di Google Sheet.');
-    }
+    if ($headerIndex < 0) throw new RuntimeException('Kolom INET/status tidak ditemukan di Google Sheet INJOKO.');
 
     $out = [];
     for ($i = $headerIndex + 1; $i < count($rows); $i++) {
         $row = $rows[$i];
         $v = [];
-        foreach ($cols as $key => $col) {
-            $v[$key] = ($col !== null && array_key_exists($col, $row))
-                ? trim((string)$row[$col])
-                : '';
-        }
+        foreach ($cols as $key => $col) $v[$key] = ($col !== null && array_key_exists($col, $row)) ? trim((string)$row[$col]) : '';
 
         $service = trim($v['service_number']);
         $primaryTicket = normalize_ticket($v['ticket']);
@@ -140,12 +112,10 @@ function orderanku_fetch_sheet(bool $force=false): array {
             'assigned_technician' => $v['assigned_technician'],
         ];
 
-        // Same identity model as the Python reference parser: ticket + service.
         $ticketKey = norm_key($ticket);
         $serviceKey = norm_key($service);
         if ($ticketKey === '' && $serviceKey === '') continue;
-        $key = $ticketKey . '|' . $serviceKey;
-        $out[$key] = $item;
+        $out[$ticketKey . '|' . $serviceKey] = $item;
     }
 
     @file_put_contents($cache, json_encode($out, JSON_UNESCAPED_UNICODE));
@@ -154,61 +124,32 @@ function orderanku_fetch_sheet(bool $force=false): array {
 
 function load_my_open_orders_fixed(int $telegramId, bool $force=false): array {
     $tech = technician_by_telegram($telegramId);
-    if (!$tech) {
-        return [
-            'ok' => false,
-            'error' => 'technician_not_registered',
-            'message' => 'Akun Telegram belum terdaftar sebagai teknisi.',
-        ];
-    }
+    if (!$tech) return ['ok'=>false,'error'=>'technician_not_registered','message'=>'Akun Telegram belum terdaftar sebagai teknisi.'];
 
     $refs = orderanku_fetch_sheet($force);
     $wanted = norm_name($tech['name'] ?? '');
-    $summary = [];
-    $groups = [];
+    $summary = ['open'=>0,'close'=>0,'update'=>0];
+    $orders = [];
 
     foreach ($refs as $row) {
         if (norm_name($row['assigned_technician'] ?? '') !== $wanted) continue;
-
-        $area = classify_area((string)($row['address'] ?? ''));
         $bucket = orderanku_sheet_bucket($row);
-        $summary[$area] ??= ['open' => 0, 'close' => 0, 'update' => 0];
-        $summary[$area][$bucket]++;
-
+        $summary[$bucket]++;
         if ($bucket === 'open') {
-            $groups[$area][] = order_payload($row);
+            $orders[] = order_payload($row);
+            $orders[array_key_last($orders)]['area'] = 'INJOKO';
+            $orders[array_key_last($orders)]['source'] = 'INJOKO';
         }
     }
 
-    $areas = [];
-    foreach ($groups as $area => $orders) {
-        usort($orders, fn($a, $b) => strnatcasecmp($a['address'], $b['address']));
-        $counts = $summary[$area] ?? ['open' => 0, 'close' => 0, 'update' => 0];
-        $areas[] = [
-            'area' => $area,
-            'open' => count($orders),
-            'close' => (int)$counts['close'],
-            'update' => (int)$counts['update'],
-            'orders' => $orders,
-        ];
-    }
-
-    $jagir = my_jagir_orders($telegramId, $tech);
-    if ($jagir) {
-        $areas[] = [
-            'area' => 'JAGIR',
-            'open' => count($jagir),
-            'close' => 0,
-            'update' => 0,
-            'orders' => $jagir,
-        ];
-    }
-
-    usort(
-        $areas,
-        fn($a, $b) => ($a['area'] === 'JAGIR' ? 1 : 0) <=> ($b['area'] === 'JAGIR' ? 1 : 0)
-            ?: strcmp($a['area'], $b['area'])
-    );
+    usort($orders, fn($a,$b) => strnatcasecmp((string)($a['address']??''), (string)($b['address']??'')));
+    $area = [
+        'area' => 'INJOKO',
+        'open' => count($orders),
+        'close' => (int)$summary['close'],
+        'update' => (int)$summary['update'],
+        'orders' => $orders,
+    ];
 
     return [
         'ok' => true,
@@ -218,9 +159,12 @@ function load_my_open_orders_fixed(int $telegramId, bool $force=false): array {
             'name' => $tech['name'],
             'sto' => $tech['sto'],
         ],
-        'source' => 'ORDER SHEET (MYR) + WORK ORDER JAGIR (JGR)',
-        'total_open' => array_sum(array_column($areas, 'open')),
-        'active_areas' => count($areas),
-        'areas' => $areas,
+        'source' => 'INJOKO • GOOGLE SHEET',
+        'total_open' => count($orders),
+        'total_close' => (int)$summary['close'],
+        'total_update' => (int)$summary['update'],
+        'total_count' => count($orders) + (int)$summary['close'] + (int)$summary['update'],
+        'active_areas' => $orders || $summary['close'] || $summary['update'] ? 1 : 0,
+        'areas' => ($orders || $summary['close'] || $summary['update']) ? [$area] : [],
     ];
 }
