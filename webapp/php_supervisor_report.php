@@ -76,3 +76,45 @@ function load_report_for_viewer_php(int $viewerTelegramId,string $targetNik=''):
     $payload['supervisor']=$supervisor;$payload['can_filter_nik']=$supervisor;$payload['selected_nik']=$supervisor?($target===''?'ALL':strtoupper($target)):(string)($viewer['nik']??'');$payload['technicians']=$supervisor?report_filter_technicians():[];
     return$payload;
 }
+
+
+/**
+ * HSA INJOKO web report. This web account is not a Telegram technician, so
+ * the report must read the dedicated INJOKO Google Sheet directly.
+ */
+function load_hsa_injoko_report_php(bool $force=false): array {
+    try {
+        $refs=orderanku_fetch_injoko_sheet($force);
+        $items=[];
+        foreach($refs as $row){
+            $items[]=[
+                'service_number'=>(string)($row['service_number']??''),
+                'inet'=>(string)($row['service_number']??''),
+                'customer_name'=>(string)($row['customer_name']??''),
+                'name'=>(string)($row['customer_name']??''),
+                'address'=>(string)($row['address']??''),
+                'status'=>(string)($row['status']??'OPEN'),
+                'assigned_technician'=>(string)($row['assigned_technician']??''),
+                'rca'=>(string)($row['rca']??''),
+                'date'=>'',
+                'completed_at'=>'',
+            ];
+        }
+        usort($items,fn($a,$b)=>strnatcasecmp((string)$a['service_number'],(string)$b['service_number']));
+        // The INJOKO source sheet currently exposes WO status but no reliable
+        // completion timestamp, therefore today/week remain zero instead of
+        // fabricating dates from unrelated columns.
+        return [
+            'ok'=>true,
+            'source'=>'GOOGLE SHEETS INJOKO',
+            'today'=>0,
+            'week'=>0,
+            'all'=>count($items),
+            'items'=>$items,
+            'data'=>$items,
+        ];
+    } catch (Throwable $e) {
+        error_log('[injoko-report] '.$e->getMessage());
+        return ['ok'=>false,'error'=>'injoko_sheet_unavailable','message'=>$e->getMessage()];
+    }
+}
