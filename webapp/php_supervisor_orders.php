@@ -115,6 +115,42 @@ function load_dismantle_for_viewer_php(int $viewerTelegramId,string $targetNik='
  * report history or Telegram assignment mapping, otherwise newly imported or
  * unassigned WO rows disappear from the website.
  */
+
+/** Build the HSA dashboard from the same dedicated INJOKO sheet as Orderanku. */
+function load_hsa_injoko_dashboard_php(string $period='daily'): array {
+    $refs=orderanku_fetch_injoko_sheet(true);
+    $summary=['total_close'=>0,'total_open'=>0,'active_technicians'=>0,'average_close'=>0];
+    $tech=[];$trend=[];
+    foreach($refs as $row){
+        $bucket=orderanku_sheet_bucket($row);
+        if($bucket==='close') $summary['total_close']++;
+        elseif($bucket==='update') {}
+        else $summary['total_open']++;
+        $name=trim((string)($row['assigned_technician']??''));
+        if($name!==''){
+            $key=norm_name($name);
+            $tech[$key]??=['nik'=>'','name'=>$name,'total'=>0];
+            if($bucket==='close') $tech[$key]['total']++;
+        }
+    }
+    $leaders=array_values(array_filter($tech,fn($x)=>$x['total']>0));
+    usort($leaders,fn($a,$b)=>($b['total']<=>$a['total'])?:strcasecmp($a['name'],$b['name']));
+    $summary['active_technicians']=count($leaders);
+    $summary['average_close']=$summary['active_technicians']>0 ? $summary['total_close']/$summary['active_technicians'] : 0;
+    $total=$summary['total_close']+$summary['total_open'];
+    $progress=$total>0 ? (int)round(($summary['total_close']/$total)*100) : 0;
+    return ['ok'=>true,'source'=>'GOOGLE SHEETS INJOKO','period'=>$period,'summary'=>$summary,'open'=>$summary['total_open'],'progress'=>$progress,'trend'=>$trend,'leaderboard'=>$leaders];
+}
+
+function load_hsa_injoko_rca_php(): array {
+    $refs=orderanku_fetch_injoko_sheet(true);$counts=[];
+    foreach($refs as $row){$v=trim((string)($row['rca']??''));if($v==='')continue;$counts[$v]=($counts[$v]??0)+1;}
+    $items=[];foreach($counts as $label=>$count)$items[]=['label'=>$label,'count'=>$count];
+    usort($items,fn($a,$b)=>$b['count']<=>$a['count']);
+    return ['ok'=>true,'source'=>'GOOGLE SHEETS INJOKO','items'=>$items];
+}
+
+
 function hsa_injoko_sheet_row(array $row): bool {
     // Prefer the STO carried by the live Google Sheet row.
     if(strtoupper(trim((string)($row['sto']??'')))==='IJK') return true;
