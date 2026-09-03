@@ -110,6 +110,20 @@ class Database:
                 conn.execute(
                     "UPDATE technicians SET role='HSA' WHERE TRIM(nik)='86240021'"
                 )
+                # INJOKO (IJK) starts with no technicians. Technicians are
+                # registered by their own /start flow in the Telegram bot.
+                # This one-time cleanup removes legacy IJK rows only; HSA is not
+                # inserted into or treated as an IJK technician.
+                conn.execute(
+                    """CREATE TABLE IF NOT EXISTS system_flags (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL
+                    )"""
+                )
+                reset_key = "injoko_empty_technician_roster_v1"
+                if not conn.execute("SELECT 1 FROM system_flags WHERE key=?", (reset_key,)).fetchone():
+                    conn.execute("DELETE FROM technicians WHERE UPPER(TRIM(COALESCE(sto,'')))='IJK'")
+                    conn.execute("INSERT INTO system_flags(key,value) VALUES (?,?)", (reset_key, utc_now()))
 
     async def get_technician(self, telegram_id: int) -> Technician | None:
         async with self._lock:
