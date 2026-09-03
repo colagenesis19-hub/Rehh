@@ -246,7 +246,17 @@ function area_condition(string $area): array {
 
 function report_rows(string $where,array $params): array {
     if(!table_exists('report_group_orders'))return[];
-    $sql="SELECT r.technician_nik nik,r.technician_name name,r.service_number,r.period_start,r.message_date,UPPER(TRIM(COALESCE(NULLIF(ra.area_label,''),ra.sto_code,o.sto,''))) area_label,UPPER(TRIM(COALESCE(ra.sto_code,o.sto,''))) sto FROM report_group_orders r LEFT JOIN report_area_orders ra ON ra.service_number=r.service_number AND ra.period_start=r.period_start LEFT JOIN orders o ON o.id=(SELECT o2.id FROM orders o2 WHERE o2.service_number=r.service_number ORDER BY o2.id DESC LIMIT 1) WHERE $where";
+    // Fresh deployments and older databases do not always have every optional
+    // report table yet. Build the joins defensively so the dashboard can still load.
+    $hasArea=table_exists('report_area_orders');
+    $hasOrders=table_exists('orders');
+    $areaExpr=$hasArea?"NULLIF(ra.area_label,'')":"NULL";
+    $stoExpr=$hasArea?'ra.sto_code':'NULL';
+    $orderArea=$hasOrders?'o.sto':'NULL';
+    $joins='';
+    if($hasArea)$joins.=" LEFT JOIN report_area_orders ra ON ra.service_number=r.service_number AND ra.period_start=r.period_start";
+    if($hasOrders)$joins.=" LEFT JOIN orders o ON o.id=(SELECT o2.id FROM orders o2 WHERE o2.service_number=r.service_number ORDER BY o2.id DESC LIMIT 1)";
+    $sql="SELECT r.technician_nik nik,r.technician_name name,r.service_number,r.period_start,r.message_date,UPPER(TRIM(COALESCE($areaExpr,$stoExpr,$orderArea,''))) area_label,UPPER(TRIM(COALESCE($stoExpr,$orderArea,''))) sto FROM report_group_orders r$joins WHERE $where";
     $st=db()->prepare($sql);$st->execute($params);return $st->fetchAll();
 }
 
