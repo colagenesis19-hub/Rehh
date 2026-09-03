@@ -50,14 +50,17 @@ function assign_wo_http(string $url, string $method='GET', ?array $payload=null,
 }
 
 function assign_wo_access(int $telegramId): ?array {
+    // Web HSA INJOKO is intentionally not a technician and therefore has no
+    // Telegram ID. telegram_id=0 represents the authenticated HSA web session.
+    if ($telegramId===0) return ['telegram_id'=>0,'nik'=>'86240021','name'=>'HSA INJOKO','sto'=>'IJK'];
     $viewer=technician_by_telegram($telegramId);
     if (!$viewer || !technician_privileged_manager($telegramId,$viewer)) return null;
     return $viewer;
 }
 
 function assign_wo_access_role(array $viewer): string {
-    if (in_array((int)($viewer['telegram_id']??0), technician_admin_ids(), true)) return 'ADMIN';
     if (trim((string)($viewer['nik']??''))==='86240021') return 'HSA';
+    if (in_array((int)($viewer['telegram_id']??0), technician_admin_ids(), true)) return 'ADMIN';
     return 'OSA';
 }
 
@@ -144,11 +147,13 @@ function assign_wo_list(int $telegramId): array {
     $masters=technician_master_rows();
     $technicians=[];
     foreach($masters as $m){
+        // INJOKO technicians appear only after they have registered via /start.
         $nik=preg_replace('/\\D/','',(string)($m['nik']??''))?:'';
         $sto=strtoupper(trim((string)($m['sto']??''))); if($sto!=='IJK') continue;
+        $telegramId=(int)($m['telegram_id']??0); if($telegramId<=0) continue;
         $name=trim((string)($m['canonical_name']??''));
         if($name==='') continue;
-        $technicians[]=['nik'=>(string)$m['nik'],'name'=>$name,'sto'=>(string)($m['sto']??''),'telegram_id'=>(int)($m['telegram_id']??0)];
+        $technicians[]=['nik'=>(string)$m['nik'],'name'=>$name,'sto'=>'IJK','telegram_id'=>$telegramId];
     }
     $refs=orderanku_fetch_injoko_sheet(true);
     $orders=[];
