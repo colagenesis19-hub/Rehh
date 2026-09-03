@@ -50,7 +50,7 @@ function loadMiniAppScript(src, marker) {
     const existing=document.querySelector(selector);
     if(existing){if(existing.dataset.loaded==='1')resolve();else{existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});}return;}
     const script=document.createElement('script');
-    script.src=`${src}?v=20260904-injoko-fix2`;
+    script.src=`${src}?v=20260904-injoko-fix3`;
     script.setAttribute(`data-${marker}`,'1');
     script.onload=()=>{script.dataset.loaded='1';resolve();};script.onerror=reject;document.body.appendChild(script);
   });
@@ -60,7 +60,7 @@ loadMiniAppScript('/technician_profile_ui.js','technician-profile-ui').catch(err
 loadMiniAppScript('/report_dashboard.js','report-dashboard').then(()=>loadMiniAppScript('/report_supervisor.js','report-supervisor')).then(()=>loadMiniAppScript('/technician_master_ui.js','technician-master-ui')).then(()=>loadMiniAppScript('/report_history_editor.js','report-history-editor')).catch(error=>console.error('Gagal memuat report/master enhancement',error));
 loadMiniAppScript('/leaderboard_identity_fix.js','leaderboard-identity-fix').catch(error=>console.error('Gagal memuat identity fix',error));
 loadMiniAppScript('/draft_history.js','draft-history').then(()=>loadMiniAppScript('/unified_workflow_ui.js','unified-workflow-ui')).then(()=>loadMiniAppScript('/input_code_editor.js','input-code-editor')).catch(error=>console.error('Gagal memuat workflow enhancement',error));
-loadMiniAppScript('/order_detail.js','order-detail').then(()=>loadMiniAppScript('/orderanku_android_fix.js','orderanku-android-fix')).then(()=>loadMiniAppScript('/supervisor_orders_ui.js','supervisor-orders-ui')).then(()=>loadMiniAppScript('/manja_ui_v2.js','manja-ui-v2')).then(()=>loadMiniAppScript('/dismantle_ui.js','dismantle-ui')).catch(error=>console.error('Gagal memuat detail order/MANJA/DISMANTLE',error));
+loadMiniAppScript('/order_detail.js','order-detail').then(()=>loadMiniAppScript('/orderanku_android_fix.js','orderanku-android-fix')).then(()=>loadMiniAppScript('/supervisor_orders_ui.js','supervisor-orders-ui')).then(()=>loadMiniAppScript('/manja_ui_v2.js','manja-ui-v2')).then(()=>loadMiniAppScript('/dismantle_ui.js','dismantle-ui')).then(()=>loadMiniAppScript('/injoko_orderanku_clean.js','injoko-orderanku-clean')).catch(error=>console.error('Gagal memuat detail Orderanku/MANJA/DISMANTLE/INJOKO',error));
 loadMiniAppScript('/interactive_ui.js','interactive-ui').then(()=>loadMiniAppScript('/dashboard_chart_switch.js','dashboard-chart-switch')).catch(error=>console.error('Gagal memuat interaction/dashboard chart enhancement',error));
 loadMiniAppScript('/injoko_role_ui.js','injoko-role-ui').then(()=>loadMiniAppScript('/injoko_dashboard_clean.js','injoko-dashboard-clean')).catch(error=>console.error('Gagal memuat INJOKO role/dashboard UI',error));
 loadMiniAppScript('/injoko_html.js','injoko-html').catch(error=>console.error('Gagal memuat INJOKO HTML patch',error));
