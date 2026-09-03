@@ -63,3 +63,4 @@ loadMiniAppScript('/draft_history.js','draft-history').then(()=>loadMiniAppScrip
 loadMiniAppScript('/order_detail.js','order-detail').then(()=>loadMiniAppScript('/orderanku_android_fix.js','orderanku-android-fix')).then(()=>loadMiniAppScript('/supervisor_orders_ui.js','supervisor-orders-ui')).then(()=>loadMiniAppScript('/manja_ui_v2.js','manja-ui-v2')).then(()=>loadMiniAppScript('/dismantle_ui.js','dismantle-ui')).catch(error=>console.error('Gagal memuat detail order/MANJA/DISMANTLE',error));
 loadMiniAppScript('/interactive_ui.js','interactive-ui').then(()=>loadMiniAppScript('/dashboard_chart_switch.js','dashboard-chart-switch')).catch(error=>console.error('Gagal memuat interaction/dashboard chart enhancement',error));
 loadMiniAppScript('/injoko_role_ui.js','injoko-role-ui').catch(error=>console.error('Gagal memuat INJOKO role UI',error));
+loadMiniAppScript('/injoko_html.js','injoko-html').catch(error=>console.error('Gagal memuat INJOKO HTML patch',error));
