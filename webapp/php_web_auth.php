@@ -26,9 +26,8 @@ function web_auth_password_hash(): string {
         $data=json_decode((string)@file_get_contents($file),true);
         if (is_array($data) && !empty($data['password_hash'])) return trim((string)$data['password_hash']);
     }
-    // Default first-login password is the HSA NIK itself.
-    $env=trim((string)(getenv('WEB_HSA_PASSWORD_HASH') ?: ''));
-    return $env !== '' ? $env : password_hash('86240021', PASSWORD_DEFAULT);
+    // First-login password is always the HSA NIK.
+    return password_hash('86240021', PASSWORD_DEFAULT);
 }
 
 function web_auth_hsa(): ?array {
@@ -36,21 +35,12 @@ function web_auth_hsa(): ?array {
     $nik=trim((string)($_SESSION['hsa_nik'] ?? ''));
     if ($nik !== '86240021') return null;
     $tech=technician_by_nik($nik);
-    if (!$tech) {
-        return [
-            'nik'=>$nik,
-            'name'=>'HSA',
-            'role'=>'HSA',
-            'telegram_id'=>(int)($_SESSION['hsa_telegram_id'] ?? 0),
-            'sto'=>strtoupper(trim((string)($_SESSION['hsa_sto'] ?? ''))),
-        ];
-    }
     return [
         'nik'=>$nik,
         'name'=>(string)($tech['name'] ?? 'HSA'),
         'role'=>'HSA',
         'telegram_id'=>(int)($tech['telegram_id'] ?? 0),
-        'sto'=>strtoupper(trim((string)($tech['sto'] ?? ''))),
+        'sto'=>strtoupper(trim((string)($tech['sto'] ?? 'INJOKO'))),
     ];
 }
 
@@ -60,12 +50,11 @@ function web_auth_login(array $payload): array {
     $password=(string)($payload['password'] ?? '');
     if ($nik !== '86240021' || $password === '') return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];
     if (!password_verify($password,web_auth_password_hash())) return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];
-    $tech=technician_by_nik($nik);
-    if (!$tech) return ['ok'=>false,'error'=>'technician_not_registered','message'=>'NIK HSA belum terdaftar di Master Teknisi.'];
     session_regenerate_id(true);
+    $tech=technician_by_nik($nik);
     $_SESSION['hsa_nik']=$nik;
     $_SESSION['hsa_telegram_id']=(int)($tech['telegram_id'] ?? 0);
-    $_SESSION['hsa_sto']=strtoupper(trim((string)($tech['sto'] ?? '')));
+    $_SESSION['hsa_sto']=strtoupper(trim((string)($tech['sto'] ?? 'INJOKO')));
     return ['ok'=>true,'user'=>web_auth_hsa()];
 }
 
