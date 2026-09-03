@@ -6,6 +6,12 @@
   const normalizeRole=v=>String(v||'').trim().toUpperCase();
   const managerRoles=new Set(['HSA','OSA','ADMIN','SUPERVISOR']);
 
+  // Explicit INJOKO role mapping.
+  // NIK 86240021 is HSA and must not fall back to TECHNICIAN.
+  const nikRoleMap={
+    '86240021':'HSA'
+  };
+
   function applyBranding(){
     document.title='INJOKO - Dashboard';
     document.querySelectorAll('body *').forEach(el=>{
@@ -61,6 +67,12 @@
       const r=await fetch('/api/technician-profile?telegram_id='+encodeURIComponent(user.id),{cache:'no-store'});
       const d=await r.json();
       let role=d?.profile?.role||'';
+
+      // If the profile API exposes NIK, enforce the explicit INJOKO mapping.
+      const profile=d?.profile||{};
+      const nik=String(profile.nik||profile.NIK||profile.nik_teknisi||profile.nikTeknisi||'').trim();
+      if(nik && nikRoleMap[nik]) role=nikRoleMap[nik];
+
       if(!role||role==='TECHNICIAN'){
         try{
           const mr=await fetch('/api/technician-master?telegram_id='+encodeURIComponent(user.id),{cache:'no-store'});
@@ -70,6 +82,9 @@
           }
         }catch(e){}
       }
+
+      // Re-apply the explicit mapping after master lookup so it cannot be overwritten.
+      if(nik && nikRoleMap[nik]) role=nikRoleMap[nik];
       applyRole(role||'TECHNICIAN');
     }catch(e){
       console.error('[INJOKO] role load failed',e);
