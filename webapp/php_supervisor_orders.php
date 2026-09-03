@@ -139,15 +139,14 @@ function hsa_injoko_sheet_row(array $row): bool {
 }
 
 function load_hsa_orders_from_sheet_php(bool $force=false): array {
-    $refs=orderanku_fetch_sheet($force);
+    $refs=orderanku_fetch_injoko_sheet($force);
     $grand=['open'=>0,'close'=>0,'update'=>0];
     $byArea=[];
     $techStats=[];
 
     foreach($refs as $row){
-        // Keep the HSA INJOKO view on IJK, but do not drop valid IJK WO
-        // merely because the sheet row has an empty/differently mapped STO.
-        if(!hsa_injoko_sheet_row($row)) continue;
+        // The source spreadsheet is the dedicated INJOKO WO sheet, so every
+        // valid row belongs to the INJOKO view even when it has no STO column.
         $bucket=orderanku_sheet_bucket($row);
         if(!isset($grand[$bucket])) $bucket='open';
         $grand[$bucket]++;
