@@ -1,4 +1,4 @@
-// Context-aware back navigation for Kerja BOT Mini App.
+// Context-aware back navigation for INJOKO Mini App.
 // Header back should step out of the current workflow before returning home.
 
 function currentVisiblePage() {
@@ -47,7 +47,7 @@ function loadMiniAppScript(src, marker) {
   return new Promise((resolve,reject)=>{
     const existing=document.querySelector(`script[data-${marker}]`);
     if(existing){if(existing.dataset.loaded==='1')resolve();else{existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});}return;}
-    const script=document.createElement('script');script.src=`${src}?v=20260831-nik-link1`;script.dataset[marker.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]='1';
+    const script=document.createElement('script');script.src=`${src}?v=20260903-injoko-fix1`;script.dataset[marker.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]='1';
     script.onload=()=>{script.dataset.loaded='1';resolve();};script.onerror=reject;document.body.appendChild(script);
   });
 }
