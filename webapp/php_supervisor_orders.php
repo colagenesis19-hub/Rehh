@@ -122,6 +122,9 @@ function load_hsa_orders_from_sheet_php(bool $force=false): array {
     $techStats=[];
 
     foreach($refs as $row){
+        // INJOKO web must never display MYR/JGR work orders.
+        // Only rows explicitly belonging to STO IJK are part of this HSA view.
+        if(strtoupper(trim((string)($row['sto']??'')))!=='IJK') continue;
         $bucket=orderanku_sheet_bucket($row);
         if(!isset($grand[$bucket])) $bucket='open';
         $grand[$bucket]++;
