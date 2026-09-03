@@ -21,6 +21,7 @@ class Technician:
     nik: str
     name: str
     sto: str
+    role: str
     created_at: str
 
 
@@ -52,6 +53,7 @@ class Database:
                         nik TEXT NOT NULL,
                         name TEXT NOT NULL,
                         sto TEXT NOT NULL DEFAULT '',
+                        role TEXT NOT NULL DEFAULT 'TECHNICIAN',
                         created_at TEXT NOT NULL
                     );
 
@@ -94,15 +96,20 @@ class Database:
                     """
                 )
 
-                # Migrasi aman untuk database lama yang belum memiliki kolom STO.
+                # Migrasi aman untuk database lama yang belum memiliki kolom STO/ROLE.
                 columns = {
                     row["name"]
                     for row in conn.execute("PRAGMA table_info(technicians)").fetchall()
                 }
                 if "sto" not in columns:
-                    conn.execute(
-                        "ALTER TABLE technicians ADD COLUMN sto TEXT NOT NULL DEFAULT ''"
-                    )
+                    conn.execute("ALTER TABLE technicians ADD COLUMN sto TEXT NOT NULL DEFAULT ''")
+                if "role" not in columns:
+                    conn.execute("ALTER TABLE technicians ADD COLUMN role TEXT NOT NULL DEFAULT 'TECHNICIAN'")
+
+                # Registrasi role yang sudah dikonfirmasi.
+                conn.execute(
+                    "UPDATE technicians SET role='HSA' WHERE TRIM(nik)='86240021'"
+                )
 
     async def get_technician(self, telegram_id: int) -> Technician | None:
         async with self._lock:
@@ -124,14 +131,15 @@ class Database:
             with self.connection() as conn:
                 conn.execute(
                     """
-                    INSERT INTO technicians (telegram_id, nik, name, sto, created_at)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO technicians (telegram_id, nik, name, sto, role, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         telegram_id,
                         nik.strip(),
                         name.strip(),
                         sto.strip().upper(),
+                        'HSA' if nik.strip() == '86240021' else 'TECHNICIAN',
                         utc_now(),
                     ),
                 )
