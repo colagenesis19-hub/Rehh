@@ -5,7 +5,12 @@
   const managerRoles=new Set(['HSA','OSA','ADMIN','SUPERVISOR']);
   function applyBranding(){
     document.title='INJOKO - Dashboard';
-    document.querySelectorAll('body *').forEach(el=>{if(el.children.length===0&&/Kerja BOT/i.test(el.textContent||''))el.textContent=el.textContent.replace(/Kerja BOT/gi,'INJOKO');});
+    document.querySelectorAll('body *').forEach(el=>{
+      if(el.children.length!==0)return;
+      const text=el.textContent||'';
+      if(/Kerja BOT/i.test(text))el.textContent=text.replace(/Kerja BOT/gi,'INJOKO');
+      else if(/Payroll/i.test(text))el.textContent=text.replace(/Payroll/gi,'Rekon');
+    });
     document.querySelectorAll('.payroll-nav small').forEach(el=>el.textContent='Rekon');
     const p=document.querySelector('#payrollPage');
     if(p)p.querySelectorAll('*').forEach(el=>{if(el.children.length===0&&/Payroll/i.test(el.textContent||''))el.textContent=el.textContent.replace(/Payroll/gi,'Rekon');});
@@ -35,5 +40,12 @@
       applyRole(role||'TECHNICIAN');
     }catch(e){console.error('[INJOKO] role load failed',e);applyRole('TECHNICIAN');}
   }
-  applyBranding(); window.addEventListener('load',()=>{applyBranding();loadRole();}); window.addEventListener('pageshow',()=>{applyBranding();loadRole();});
+  applyBranding();
+  if(document.body){
+    const observer=new MutationObserver(()=>applyBranding());
+    observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+  }
+  window.addEventListener('DOMContentLoaded',()=>{applyBranding();loadRole();});
+  window.addEventListener('load',()=>{applyBranding();loadRole();});
+  window.addEventListener('pageshow',()=>{applyBranding();loadRole();});
 })();
