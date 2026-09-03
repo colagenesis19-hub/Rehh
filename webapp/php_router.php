@@ -29,8 +29,8 @@ try{
  if($method==='POST'&&$path==='/api/web-change-password'){$result=web_auth_change_password(input_json());respond($result,($result['ok']??false)?200:400);}
  if($method==='GET'&&$path==='/api/web-hsa-data'){$user=web_auth_require_hsa();$result=assign_wo_list((int)($user['telegram_id']??0));respond($result,($result['ok']??false)?200:500);}
  if($method==='POST'&&$path==='/api/web-hsa-assign'){$user=web_auth_require_hsa();$payload=input_json();$payload['telegram_id']=(int)($user['telegram_id']??0);$result=assign_wo_apply($payload);respond($result,($result['ok']??false)?200:(($result['error']??'')==='forbidden'?403:400));}
- if($method==='GET'&&$path==='/api/web-dashboard'){$user=web_auth_require_hsa();$area='ALL';$period=(string)($_GET['period']??'daily');$result=load_dashboard_php($area,$period);$result['web_role']='HSA';$result['source']='INJOKO';respond($result);}
- if($method==='GET'&&$path==='/api/web-rca'){$user=web_auth_require_hsa();$result=load_rca_summary_php('ALL');$result['source']='INJOKO';respond($result);}
+ if($method==='GET'&&$path==='/api/web-dashboard'){$user=web_auth_require_hsa();$area='IJK';$period=(string)($_GET['period']??'daily');$result=load_dashboard_php($area,$period);$result['web_role']='HSA';$result['source']='INJOKO';respond($result);}
+ if($method==='GET'&&$path==='/api/web-rca'){$user=web_auth_require_hsa();$result=load_rca_summary_php('IJK');$result['source']='INJOKO';respond($result);}
  if($method==='GET'&&$path==='/api/web-orders'){$user=web_auth_require_hsa();$result=load_hsa_orders_from_sheet_php(((string)($_GET['force']??'0'))==='1');respond($result,($result['ok']??false)?200:500);}
  if($method==='GET'&&$path==='/api/web-report'){$user=web_auth_require_hsa();$result=load_supervisor_report_php((int)($user['telegram_id']??0));respond($result,($result['ok']??false)?200:500);}
  if($method==='GET'&&$path==='/api/dashboard')respond(load_dashboard_php((string)($_GET['area']??'ALL'),(string)($_GET['period']??'daily')));
