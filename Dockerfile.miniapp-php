@@ -8,9 +8,10 @@ RUN apt-get update \
 WORKDIR /app
 COPY webapp/ /app/webapp/
 
-# Temporary build-time repair for the restored backend source, then fail the build
-# immediately if any PHP syntax error remains.
-RUN sed -i "s#\$rawNik=trim((string)\$r\['nik'\];#\$rawNik=trim((string)\$r['nik']);#" /app/webapp/php_backend.php \
+# Load the standalone login handler before the legacy inline UI script.
+# This prevents a broken inline script from falling back to normal form navigation.
+RUN sed -i 's#<script>#<script src="/web/login-fix.js"></script><script>#' /app/webapp/web/index.html \
+    && sed -i "s#\$rawNik=trim((string)\$r\['nik'\];#\$rawNik=trim((string)\$r['nik']);#" /app/webapp/php_backend.php \
     && php -l /app/webapp/php_backend.php \
     && php -l /app/webapp/php_compat.php \
     && php -l /app/webapp/php_manja.php \
