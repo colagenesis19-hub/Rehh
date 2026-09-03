@@ -32,6 +32,7 @@ from services.order_repository import OrderRepository
 from services.report_area_leaderboard import _leaderboard_rows, _period_bounds as _area_period_bounds, _registered_area_topics, build_leaderboard_text, send_daily_close, send_report_leaderboard
 from services.report_history_export import exportreport_command
 from services.report_history_import import import_history_document, importhistory_cancel, importhistory_command
+from services.legacy_replacement_import import import_legacy_replacement_document, importreplacementhistory_command
 from services.report_hourly_progress import remember_report_manyar_group, send_hourly_report_progress
 from services.report_laporan import capture_report_ticket_metadata, laporan_command, laporan_group_command
 from services.report_leaderboard import capture_report_group_message, capture_sto_recap_group_message
@@ -171,8 +172,10 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("closeharian", closeharian_command))
     app.add_handler(CommandHandler("laporan", laporan_command))
     app.add_handler(CommandHandler("importhistory", importhistory_command))
+    app.add_handler(CommandHandler("importreplacementhistory", importreplacementhistory_command))
     app.add_handler(CommandHandler("cancelimporthistory", importhistory_cancel))
     app.add_handler(CommandHandler("exportreport", exportreport_command))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.Document.ALL, import_legacy_replacement_document))
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.Document.ALL, import_history_document))
     for handler in build_excel_status_handlers(): app.add_handler(handler)
     for handler in build_my_orders_handlers(): app.add_handler(handler)
