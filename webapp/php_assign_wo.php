@@ -119,6 +119,21 @@ function assign_wo_find_column(array $headers,array $aliases): ?int {
     return null;
 }
 
+/** Find the real header row; INJOKO sheets may contain title rows above it. */
+function assign_wo_find_header_row(array $rows): array {
+    $aliases=header_aliases();
+    foreach (array_slice($rows,0,30,true) as $i=>$row) {
+        $service=assign_wo_find_column($row,$aliases['service_number']??[]);
+        $status=assign_wo_find_column($row,$aliases['status']??[]);
+        $tacpro=assign_wo_find_column($row,['STATUS TACPRO','STATUS TACTICAL','TACTICAL STATUS']);
+        $insera=assign_wo_find_column($row,['STATUS INSERA TODAY','STATUS INSERA','INSERA STATUS']);
+        if($service!==null && ($status!==null || $tacpro!==null || $insera!==null)) {
+            return [$i,$row,$service];
+        }
+    }
+    throw new RuntimeException('Header INET/status tidak ditemukan pada Google Sheet INJOKO.');
+}
+
 function assign_wo_write_cell(string $token,string $spreadsheetId,string $title,string $range,string $value): void {
     $a1="'".str_replace("'","''",$title)."'!$range";
     $url='https://sheets.googleapis.com/v4/spreadsheets/'.rawurlencode($spreadsheetId).'/values/'.rawurlencode($a1).'?valueInputOption=USER_ENTERED';
@@ -184,24 +199,27 @@ function assign_wo_apply(array $payload): array {
     $spreadsheetId=INJOKO_SPREADSHEET_ID;$gid=INJOKO_SHEET_GID;
     $token=assign_wo_access_token();$sheet=assign_wo_sheet_metadata($token,$spreadsheetId,$gid);$rows=assign_wo_read_sheet($token,$spreadsheetId,$sheet['title']);
     if(!$rows) throw new RuntimeException('Google Sheet kosong atau tidak dapat dibaca.');
-    $headers=$rows[0]??[];
-    $serviceCol=assign_wo_find_column($headers,header_aliases()['service_number']);
-    if($serviceCol===null) throw new RuntimeException('Kolom INET/NO SERVICE tidak ditemukan.');
-    $techCol=assign_wo_find_column($headers,header_aliases()['assigned_technician']);
+    [$headerRow,$headers,$serviceCol]=assign_wo_find_header_row($rows);
+    $techCol=assign_wo_find_column($headers,header_aliases()['assigned_technician']??['NAMA PETUGAS','TEKNISI','NAMA TEKNISI']);
     if($techCol===null){
-        $techCol=count($headers);assign_wo_write_cell($token,$spreadsheetId,$sheet['title'],assign_wo_col_letter($techCol).'1','NAMA PETUGAS');
+        $techCol=count($headers);
+        assign_wo_write_cell($token,$spreadsheetId,$sheet['title'],assign_wo_col_letter($techCol).($headerRow+1),'NAMA PETUGAS');
     }
-    $wanted=array_fill_keys($services,true);$found=[];$skipped=[];
+    // Match exactly as displayed, while tolerating numeric formatting and spaces.
+    $wanted=[];
+    foreach($services as $s){$wanted[norm_key($s)]=$s;}
+    $found=[];$skipped=[];
     foreach($rows as $i=>$row){
-        if($i===0)continue;
+        if($i<=$headerRow)continue;
         $service=trim((string)($row[$serviceCol]??''));
-        if($service===''||!isset($wanted[$service]))continue;
+        $serviceKey=norm_key($service);
+        if($service===''||!isset($wanted[$serviceKey]))continue;
         $current=trim((string)($row[$techCol]??''));
         if($current!=='' && norm_name($current)!==norm_name((string)$target['canonical_name'])){$skipped[]=['service_number'=>$service,'assigned_technician'=>$current];continue;}
         assign_wo_write_cell($token,$spreadsheetId,$sheet['title'],assign_wo_col_letter($techCol).($i+1),(string)$target['canonical_name']);
         $found[]=$service;
         $order=['service_number'=>$service,'assigned_technician'=>(string)$target['canonical_name']];
-        foreach($rows[0] as $j=>$h){$key=norm($h);if($j<count($row)){
+        foreach($headers as $j=>$h){$key=norm($h);if($j<count($row)){
             if(in_array($key,['NAMA PELANGGAN','CUSTOMER NAME','NAMA'],true))$order['customer_name']=$row[$j];
             if(in_array($key,['ALAMAT','ADDRESS','ALAMAT PELANGGAN'],true))$order['address']=$row[$j];
             if(in_array($key,['STO','KODE STO'],true))$order['sto']=$row[$j];
@@ -209,6 +227,8 @@ function assign_wo_apply(array $payload): array {
         }}
         assign_wo_local_sync($order,(string)$target['canonical_name']);
     }
-    if(!$found) return ['ok'=>false,'error'=>'not_found','message'=>'INET tidak ditemukan sebagai OPEN di Google Sheet atau sudah di-assign ke teknisi lain.','skipped'=>$skipped];
+    if(!$found) return ['ok'=>false,'error'=>'not_found','message'=>'INET tidak ditemukan pada Sheet atau sudah di-assign ke teknisi lain.','skipped'=>$skipped];
+    // Clear the public-sheet cache so the UI immediately reflects the write.
+    @unlink('/tmp/kerja-bot-orderanku-cache-injoko-ijk-v1.json');
     return ['ok'=>true,'assigned'=>$found,'skipped'=>$skipped,'technician'=>['nik'=>$targetNik,'name'=>$target['canonical_name']],'source'=>'Google Sheets'];
 }
