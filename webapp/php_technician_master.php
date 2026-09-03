@@ -28,7 +28,8 @@ function technician_privileged_manager(int $telegramId, ?array $viewer=null): bo
     if(in_array($telegramId,technician_admin_ids(),true)) return true;
     $viewer=$viewer ?: technician_by_telegram($telegramId);
     $nik=trim((string)($viewer['nik']??''));
-    return in_array($nik,['91260038','94250015'],true);
+    // Confirmed manager mapping: NIK 86240021 is HSA.
+    return in_array($nik,['86240021','91260038','94250015'],true);
 }
 
 function ensure_technician_master_schema(): void {
@@ -116,7 +117,8 @@ function technician_master_for_viewer(int $telegramId): array {
     ensure_technician_master_schema();$viewer=technician_by_telegram($telegramId);if(!$viewer)return['ok'=>false,'error'=>'technician_not_registered','message'=>'Akun Telegram belum terdaftar.'];
     if(!technician_privileged_manager($telegramId,$viewer))return['ok'=>false,'error'=>'forbidden','message'=>'Master Teknisi hanya dapat diakses OSA/HSA atau admin bot.'];
     $items=[];foreach(technician_master_rows() as $m){$st=db()->prepare('SELECT alias FROM technician_aliases WHERE nik=? ORDER BY alias');$st->execute([$m['nik']]);$m['aliases']=array_values(array_unique(array_map(fn($r)=>(string)$r['alias'],$st->fetchAll())));$items[]=$m;}
-    return['ok'=>true,'can_manage'=>true,'role'=>in_array($telegramId,technician_admin_ids(),true)?'ADMIN':'SUPERVISOR','items'=>$items,'normalization'=>normalize_technician_data()];
+    $role=in_array($telegramId,technician_admin_ids(),true)?'ADMIN':(trim((string)($viewer['nik']??''))==='86240021'?'HSA':'SUPERVISOR');
+    return['ok'=>true,'can_manage'=>true,'role'=>$role,'items'=>$items,'normalization'=>normalize_technician_data()];
 }
 
 function save_technician_master(array $payload): array {
