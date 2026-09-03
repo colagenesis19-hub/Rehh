@@ -13,6 +13,7 @@ require __DIR__ . '/php_technician_master.php';
 require __DIR__ . '/php_technician_profile.php';
 require __DIR__ . '/php_technician_master_bootstrap.php';
 require __DIR__ . '/php_assign_wo.php';
+require __DIR__ . '/php_web_auth.php';
 
 function respond(mixed $payload, int $status=200): never {
     http_response_code($status);
@@ -38,6 +39,7 @@ function serve_static_no_cache(string $file): never {
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+if ($path === '/web' || $path === '/web/') serve_static_no_cache(__DIR__ . '/web/index.html');
 if ($path === '/' || $path === '/index.html') serve_static_no_cache(__DIR__ . '/index.html');
 if (!str_starts_with($path, '/api/') && $path !== '/health') {
     $candidate = realpath(__DIR__ . $path); $base = realpath(__DIR__);
@@ -47,6 +49,30 @@ if (!str_starts_with($path, '/api/') && $path !== '/health') {
 
 try {
     if ($method === 'GET' && $path === '/health') respond(['ok'=>true,'backend'=>'php','php'=>PHP_VERSION,'database'=>db_path()]);
+
+    // HSA web console authentication. Credentials never come from the browser except login input.
+    if ($method === 'POST' && $path === '/api/web-login') {
+        $result=web_auth_login(input_json());
+        respond($result,($result['ok']??false)?200:401);
+    }
+    if ($method === 'GET' && $path === '/api/web-session') {
+        $user=web_auth_hsa();
+        respond($user?['ok'=>true,'user'=>$user]:['ok'=>false,'error'=>'web_auth_required'], $user?200:401);
+    }
+    if ($method === 'POST' && $path === '/api/web-logout') respond(web_auth_logout());
+    if ($method === 'GET' && $path === '/api/web-hsa-data') {
+        $user=web_auth_require_hsa();
+        $result=assign_wo_list((int)($user['telegram_id']??0));
+        respond($result,($result['ok']??false)?200:500);
+    }
+    if ($method === 'POST' && $path === '/api/web-hsa-assign') {
+        $user=web_auth_require_hsa();
+        $payload=input_json();
+        $payload['telegram_id']=(int)($user['telegram_id']??0);
+        $result=assign_wo_apply($payload);
+        respond($result,($result['ok']??false)?200:(($result['error']??'')==='forbidden'?403:400));
+    }
+
     if ($method === 'GET' && $path === '/api/dashboard') respond(load_dashboard_php((string)($_GET['area'] ?? 'ALL'), (string)($_GET['period'] ?? 'daily')));
     if ($method === 'GET' && $path === '/api/rca-summary') respond(load_rca_summary_php((string)($_GET['area'] ?? 'ALL')));
     if ($method === 'GET' && $path === '/api/technician') {
@@ -116,5 +142,6 @@ try {
     respond(['ok'=>false,'error'=>'not_found','path'=>$path],404);
 } catch (Throwable $e) {
     error_log('[miniapp-php] '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
+    if ($e->getMessage()==='WEB_AUTH_REQUIRED') respond(['ok'=>false,'error'=>'web_auth_required','message'=>'Silakan login sebagai HSA.'],401);
     respond(['ok'=>false,'error'=>'internal_error','message'=>'Mini App backend gagal memproses permintaan.'],500);
 }
