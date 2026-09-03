@@ -50,7 +50,7 @@ function loadMiniAppScript(src, marker) {
     const existing=document.querySelector(selector);
     if(existing){if(existing.dataset.loaded==='1')resolve();else{existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});}return;}
     const script=document.createElement('script');
-    script.src=`${src}?v=20260903-injoko-fix3`;
+    script.src=`${src}?v=20260904-hsa-order-summary`;
     script.setAttribute(`data-${marker}`,'1');
     script.onload=()=>{script.dataset.loaded='1';resolve();};script.onerror=reject;document.body.appendChild(script);
   });
