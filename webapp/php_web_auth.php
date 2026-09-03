@@ -22,14 +22,19 @@ function web_auth_save_users(array $users): bool {
     $tmp=$file.'.tmp';$ok=@file_put_contents($tmp,json_encode(['version'=>2,'users'=>$users,'updated_at'=>date('c')],JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT),LOCK_EX)!==false&&@rename($tmp,$file);
     if($ok)@chmod($file,0600);else @unlink($tmp);return $ok;
 }
+function web_hsa_identity(string $nik): ?array {
+    if(trim($nik)!=='86240021') return null;
+    return ['telegram_id'=>0,'nik'=>'86240021','name'=>'HSA INJOKO','sto'=>'IJK'];
+}
 function technician_by_nik(string $nik): ?array {
     if(!table_exists('technicians'))return null;
     $st=db()->prepare('SELECT telegram_id,nik,name,sto FROM technicians WHERE TRIM(nik)=? LIMIT 1');$st->execute([trim($nik)]);$r=$st->fetch();return $r?:null;
 }
 function web_auth_role(string $nik): string { return $nik==='86240021'?'HSA':'TEKNISI'; }
+function web_auth_identity(string $nik): ?array { return web_hsa_identity($nik) ?: technician_by_nik($nik); }
 function web_auth_login(array $payload): array {
     web_auth_start();$nik=preg_replace('/\D/','',(string)($payload['nik']??''))?:'';$password=(string)($payload['password']??'');
-    $tech=technician_by_nik($nik);if(!$tech||$password==='')return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];
+    $tech=web_auth_identity($nik);if(!$tech||$password==='')return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];
     $users=web_auth_load_users();$record=$users[$nik]??null;
     // First login uses NIK as temporary password, then forces a password change.
     if(!$record){if(!hash_equals($nik,$password))return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];$record=['password_hash'=>password_hash($password,PASSWORD_DEFAULT),'role'=>web_auth_role($nik),'must_change_password'=>true];$users[$nik]=$record;web_auth_save_users($users);}
@@ -38,7 +43,7 @@ function web_auth_login(array $payload): array {
     return ['ok'=>true,'user'=>web_auth_current_user()];
 }
 function web_auth_current_user(): ?array {
-    web_auth_start();$nik=trim((string)($_SESSION['web_nik']??''));$tech=$nik!==''?technician_by_nik($nik):null;if(!$tech)return null;
+    web_auth_start();$nik=trim((string)($_SESSION['web_nik']??''));$tech=$nik!==''?web_auth_identity($nik):null;if(!$tech)return null;
     return ['nik'=>$nik,'name'=>(string)($tech['name']??$nik),'role'=>strtoupper((string)($_SESSION['web_role']??web_auth_role($nik))),'telegram_id'=>(int)($tech['telegram_id']??0),'sto'=>strtoupper((string)($tech['sto']??'INJOKO')),'must_change_password'=>(bool)($_SESSION['web_must_change_password']??false)];
 }
 function web_auth_hsa(): ?array { $u=web_auth_current_user();return $u&&$u['role']==='HSA'?$u:null; }
