@@ -18,8 +18,8 @@ function respond(mixed $payload,int $status=200):never{http_response_code($statu
 function input_json():array{$raw=file_get_contents('php://input')?:'{}';$data=json_decode($raw,true);return is_array($data)?$data:[];}
 function serve_static_no_cache(string $file):never{$ext=strtolower(pathinfo($file,PATHINFO_EXTENSION));$types=['html'=>'text/html; charset=utf-8','js'=>'application/javascript; charset=utf-8','css'=>'text/css; charset=utf-8','json'=>'application/json; charset=utf-8','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','ico'=>'image/x-icon'];header('Content-Type: '.($types[$ext]??'application/octet-stream'));header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');header('Pragma: no-cache');header('Expires: 0');readfile($file);exit;}
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';$method=strtoupper($_SERVER['REQUEST_METHOD']??'GET');
-if($path==='/web'||$path==='/web/')serve_static_no_cache(__DIR__.'/web/index.html');
-if($path==='/'||$path==='/index.html')serve_static_no_cache(__DIR__.'/index.html');
+if($path==='/login'||$path==='/login/')serve_static_no_cache(__DIR__.'/web/login.html');
+if($path==='/web'||$path==='/web/'||$path==='/'||$path==='/index.html'){if(!web_auth_current_user()){header('Location: /login',true,302);exit;}serve_static_no_cache($path==='/web'||$path==='/web/'?__DIR__.'/web/index.html':__DIR__.'/index.html');}
 if(!str_starts_with($path,'/api/')&&$path!=='/health'){$candidate=realpath(__DIR__.$path);$base=realpath(__DIR__);if($candidate&&$base&&str_starts_with($candidate,$base.DIRECTORY_SEPARATOR)&&is_file($candidate))serve_static_no_cache($candidate);http_response_code(404);echo'Not Found';exit;}
 try{
  if($method==='GET'&&$path==='/health')respond(['ok'=>true,'backend'=>'php','php'=>PHP_VERSION,'database'=>db_path()]);
