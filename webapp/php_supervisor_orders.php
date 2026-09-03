@@ -115,6 +115,29 @@ function load_dismantle_for_viewer_php(int $viewerTelegramId,string $targetNik='
  * report history or Telegram assignment mapping, otherwise newly imported or
  * unassigned WO rows disappear from the website.
  */
+function hsa_injoko_sheet_row(array $row): bool {
+    // Prefer the STO carried by the live Google Sheet row.
+    if(strtoupper(trim((string)($row['sto']??'')))==='IJK') return true;
+
+    // Some WO rows in the sheet do not expose the STO column in the selected
+    // range. Fall back to the locally synced WO/area mapping for that INET.
+    $service=trim((string)($row['service_number']??''));
+    if($service==='') return false;
+    try {
+        if(table_exists('orders')){
+            $st=db()->prepare('SELECT sto FROM orders WHERE TRIM(service_number)=? ORDER BY id DESC LIMIT 1');
+            $st->execute([$service]);
+            if(strtoupper(trim((string)$st->fetchColumn()))==='IJK') return true;
+        }
+        if(table_exists('report_area_orders')){
+            $st=db()->prepare('SELECT 1 FROM report_area_orders WHERE TRIM(service_number)=? AND UPPER(TRIM(sto_code))=? LIMIT 1');
+            $st->execute([$service,'IJK']);
+            if($st->fetchColumn()) return true;
+        }
+    } catch(Throwable) {}
+    return false;
+}
+
 function load_hsa_orders_from_sheet_php(bool $force=false): array {
     $refs=orderanku_fetch_sheet($force);
     $grand=['open'=>0,'close'=>0,'update'=>0];
@@ -122,9 +145,9 @@ function load_hsa_orders_from_sheet_php(bool $force=false): array {
     $techStats=[];
 
     foreach($refs as $row){
-        // INJOKO web must never display MYR/JGR work orders.
-        // Only rows explicitly belonging to STO IJK are part of this HSA view.
-        if(strtoupper(trim((string)($row['sto']??'')))!=='IJK') continue;
+        // Keep the HSA INJOKO view on IJK, but do not drop valid IJK WO
+        // merely because the sheet row has an empty/differently mapped STO.
+        if(!hsa_injoko_sheet_row($row)) continue;
         $bucket=orderanku_sheet_bucket($row);
         if(!isset($grand[$bucket])) $bucket='open';
         $grand[$bucket]++;
