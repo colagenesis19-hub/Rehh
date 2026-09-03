@@ -7,19 +7,26 @@ function technician_profile_get(int $telegramId): array {
     if(!$tech)return['ok'=>false,'error'=>'technician_not_registered','message'=>'Akun Telegram belum terdaftar sebagai teknisi.'];
     $username='';
     if(table_exists('technician_usernames')){try{$st=db()->prepare('SELECT username FROM technician_usernames WHERE telegram_id=? LIMIT 1');$st->execute([$telegramId]);$username=ltrim(trim((string)($st->fetchColumn()?:'')),'@');}catch(Throwable){}}
-    $nik=trim((string)($tech['nik']??''));$privileged=technician_privileged_manager($telegramId,$tech);
+    $nik=trim((string)($tech['nik']??''));
+    // Role khusus yang sudah dikonfirmasi: NIK 86240021 = HSA.
+    // Tetap pertahankan mekanisme privileged manager lama untuk akun supervisor/admin lainnya.
+    $hsa=$nik==='86240021';
+    $privileged=$hsa||technician_privileged_manager($telegramId,$tech);
+    $role=$hsa?'HSA':($privileged?(in_array($telegramId,technician_admin_ids(),true)?'ADMIN':'SUPERVISOR'):'TECHNICIAN');
     return['ok'=>true,'profile'=>[
         'telegram_id'=>$telegramId,'nik'=>$nik,'name'=>trim((string)($tech['name']??'')),
         'sto'=>strtoupper(trim((string)($tech['sto']??''))),'username'=>$username,
-        'can_edit_nik'=>$nik===''||$privileged,'nik_empty'=>$nik==='','can_manage_master'=>$privileged,
-        'manager_role'=>$privileged?(in_array($telegramId,technician_admin_ids(),true)?'ADMIN':'SUPERVISOR'):'TECHNICIAN',
+        'role'=>$role,'can_edit_nik'=>$nik===''||$privileged,'nik_empty'=>$nik==='','can_manage_master'=>$privileged,
+        'manager_role'=>$role,
     ]];
 }
 
 function technician_profile_save(array $payload): array {
     $raw=trim((string)($payload['telegram_id']??''));if(!ctype_digit($raw))return['ok'=>false,'error'=>'invalid_request','message'=>'Telegram ID tidak valid.'];
     $telegramId=(int)$raw;$tech=technician_by_telegram($telegramId);if(!$tech)return['ok'=>false,'error'=>'technician_not_registered','message'=>'Akun Telegram belum terdaftar sebagai teknisi.'];
-    $currentNik=preg_replace('/\D/','',(string)($tech['nik']??''))?:'';$requestedNik=preg_replace('/\D/','',(string)($payload['nik']??$currentNik))?:'';$privileged=technician_privileged_manager($telegramId,$tech);
+    $currentNik=preg_replace('/\D/','',(string)($tech['nik']??''))?:'';$requestedNik=preg_replace('/\D/','',(string)($payload['nik']??$currentNik))?:'';
+    $hsa=$currentNik==='86240021';
+    $privileged=$hsa||technician_privileged_manager($telegramId,$tech);
     $name=trim(preg_replace('/\s+/',' ',(string)($payload['name']??''))?:'');$sto=strtoupper(trim((string)($payload['sto']??'')));$username=ltrim(trim((string)($payload['username']??'')),'@');$nameLen=strlen($name);
     if($name===''||$nameLen<3||$nameLen>80)return['ok'=>false,'error'=>'invalid_name','message'=>'Nama harus 3-80 karakter.'];
     if($sto!==''&&!preg_match('/^[A-Z0-9]{2,8}$/',$sto))return['ok'=>false,'error'=>'invalid_sto','message'=>'Format STO tidak valid.'];
