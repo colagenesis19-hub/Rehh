@@ -145,7 +145,7 @@ function assign_wo_list(int $telegramId): array {
     $technicians=[];
     foreach($masters as $m){
         $nik=preg_replace('/\\D/','',(string)($m['nik']??''))?:'';
-        if($nik!=='86240021') continue;
+        $sto=strtoupper(trim((string)($m['sto']??''))); if($sto!=='IJK') continue;
         $name=trim((string)($m['canonical_name']??''));
         if($name==='') continue;
         $technicians[]=['nik'=>(string)$m['nik'],'name'=>$name,'sto'=>(string)($m['sto']??''),'telegram_id'=>(int)($m['telegram_id']??0)];
@@ -173,7 +173,7 @@ function assign_wo_apply(array $payload): array {
     $target=null;
     foreach(technician_master_rows() as $m) {
         $nik=preg_replace('/\\D/','',(string)($m['nik']??''))?:'';
-        if($nik===$targetNik && $nik==='86240021'){$target=$m;break;}
+        $sto=strtoupper(trim((string)($m['sto']??''))); if($nik===$targetNik && $sto==='IJK'){$target=$m;break;}
     }
     if(!$target) return ['ok'=>false,'error'=>'technician_not_found','message'=>'Teknisi tujuan tidak ditemukan di Master Teknisi.'];
     $settings=assign_wo_sheet_config();
