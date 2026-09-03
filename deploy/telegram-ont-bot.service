@@ -1,0 +1,17 @@
+[Unit]
+Description=Telegram ONT Replacement Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/telegram-ont-bot
+EnvironmentFile=/opt/telegram-ont-bot/.env
+ExecStart=/opt/telegram-ont-bot/.venv/bin/python /opt/telegram-ont-bot/main.py
+Restart=always
+RestartSec=5
+User=telegrambot
+Group=telegrambot
+
+[Install]
+WantedBy=multi-user.target

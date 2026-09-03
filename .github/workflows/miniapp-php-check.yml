@@ -1,0 +1,71 @@
+name: Mini App PHP checks
+
+on:
+  push:
+    paths:
+      - 'main.py'
+      - 'webapp/*.php'
+      - 'webapp/*.js'
+      - 'services/dismantle_orders.py'
+      - 'services/jagir_work_orders.py'
+      - 'services/report_hourly_progress.py'
+      - 'Dockerfile.miniapp-php'
+      - 'docker-compose.yml'
+      - '.github/workflows/miniapp-php-check.yml'
+  pull_request:
+    paths:
+      - 'main.py'
+      - 'webapp/*.php'
+      - 'webapp/*.js'
+      - 'services/dismantle_orders.py'
+      - 'services/jagir_work_orders.py'
+      - 'services/report_hourly_progress.py'
+      - 'Dockerfile.miniapp-php'
+      - 'docker-compose.yml'
+      - '.github/workflows/miniapp-php-check.yml'
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply restored-backend repair
+        run: |
+          sed -i "s#\$rawNik=trim((string)\$r\['nik'\];#\$rawNik=trim((string)\$r['nik']);#" webapp/php_backend.php
+      - name: PHP syntax
+        run: |
+          php -l webapp/php_backend.php
+          php -l webapp/php_compat.php
+          php -l webapp/php_manja.php
+          php -l webapp/php_orderanku_fix.php
+          php -l webapp/php_dismantle.php
+          php -l webapp/php_supervisor_report.php
+          php -l webapp/php_supervisor_orders.php
+          php -l webapp/php_unified_workflow.php
+          php -l webapp/php_technician_master.php
+          php -l webapp/php_technician_master_bootstrap.php
+          php -l webapp/php_technician_profile.php
+          php -l webapp/php_dashboard_identity_readonly.php
+          php -l webapp/php_technician_detail_readonly.php
+          php -l webapp/php_entry_router.php
+          php -l webapp/php_router.php
+      - name: JavaScript syntax
+        run: |
+          node --check webapp/interactive_ui.js
+          node --check webapp/navigation_back.js
+          node --check webapp/order_detail.js
+          node --check webapp/orderanku_android_fix.js
+          node --check webapp/manja_ui_v2.js
+          node --check webapp/dismantle_ui.js
+          node --check webapp/dashboard_chart_switch.js
+          node --check webapp/report_supervisor.js
+          node --check webapp/unified_workflow_ui.js
+          node --check webapp/technician_master_ui.js
+          node --check webapp/technician_profile_ui.js
+      - name: Python syntax
+        run: |
+          python -m py_compile main.py services/dismantle_orders.py services/jagir_work_orders.py services/report_hourly_progress.py
+      - name: Compose config
+        run: |
+          touch .env
+          docker compose config >/dev/null

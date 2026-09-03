@@ -1,0 +1,29 @@
+services:
+  telegram-ont-bot:
+    build: .
+    container_name: telegram-ont-bot
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ./database:/app/database
+      - ./logs:/app/logs
+      - ./evidence:/app/evidence
+      - ./secrets:/app/secrets:ro
+
+  kerja-bot-miniapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.miniapp-php
+    container_name: kerja-bot-miniapp
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/database/bot.sqlite3
+      MINIAPP_BACKEND: php
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./database:/app/database

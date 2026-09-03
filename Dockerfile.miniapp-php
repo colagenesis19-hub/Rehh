@@ -1,0 +1,26 @@
+FROM php:8.3-cli
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libsqlite3-dev ca-certificates \
+    && docker-php-ext-install pdo_sqlite \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY webapp/ /app/webapp/
+
+# Temporary build-time repair for the restored backend source, then fail the build
+# immediately if any PHP syntax error remains.
+RUN sed -i "s#\$rawNik=trim((string)\$r\['nik'\];#\$rawNik=trim((string)\$r['nik']);#" /app/webapp/php_backend.php \
+    && php -l /app/webapp/php_backend.php \
+    && php -l /app/webapp/php_compat.php \
+    && php -l /app/webapp/php_manja.php \
+    && php -l /app/webapp/php_orderanku_fix.php \
+    && php -l /app/webapp/php_dismantle.php \
+    && php -l /app/webapp/php_technician_profile.php \
+    && php -l /app/webapp/php_dashboard_identity_readonly.php \
+    && php -l /app/webapp/php_entry_router.php \
+    && php -l /app/webapp/php_router.php
+
+ENV PHP_CLI_SERVER_WORKERS=4
+EXPOSE 8080
+CMD ["php", "-S", "0.0.0.0:8080", "-t", "/app/webapp", "/app/webapp/php_entry_router.php"]
