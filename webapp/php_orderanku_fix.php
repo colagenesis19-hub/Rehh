@@ -32,8 +32,15 @@ function orderanku_find_header(array $row, array $aliases): ?int {
     return null;
 }
 
-function orderanku_fetch_sheet(bool $force=false): array {
-    $cache = '/tmp/kerja-bot-orderanku-cache-v5.json';
+const INJOKO_SPREADSHEET_ID = '12FtnVT0yM-YWkwHVCCq8rVxq1hS3PVJDzYmAx-kNNs4';
+const INJOKO_SHEET_GID = '0';
+
+function orderanku_injoko_csv_url(): string {
+    return 'https://docs.google.com/spreadsheets/d/' . INJOKO_SPREADSHEET_ID . '/export?format=csv&gid=' . INJOKO_SHEET_GID;
+}
+
+function orderanku_fetch_sheet(bool $force=false, ?string $csvUrl=null, ?string $cacheKey=null): array {
+    $cache = '/tmp/kerja-bot-orderanku-cache-' . ($cacheKey ?: 'default') . '.json';
     if (!$force && is_file($cache) && time() - filemtime($cache) < 30) {
         $decoded = json_decode((string)file_get_contents($cache), true);
         if (is_array($decoded)) return $decoded;
@@ -45,7 +52,7 @@ function orderanku_fetch_sheet(bool $force=false): array {
             'header' => "User-Agent: INJOKO-Orderanku/1.0\r\n",
         ],
     ]);
-    $raw = @file_get_contents(sheet_csv_url(), false, $ctx);
+    $raw = @file_get_contents($csvUrl ?: sheet_csv_url(), false, $ctx);
     if ($raw === false || trim($raw) === '') throw new RuntimeException('Google Sheets INJOKO tidak dapat dibaca.');
 
     $fp = fopen('php://temp', 'r+');
@@ -120,6 +127,12 @@ function orderanku_fetch_sheet(bool $force=false): array {
 
     @file_put_contents($cache, json_encode($out, JSON_UNESCAPED_UNICODE));
     return $out;
+}
+
+function orderanku_fetch_injoko_sheet(bool $force=false): array {
+    // INJOKO has its own WO spreadsheet. This must not fall back to the
+    // MYR/default sheet or to bot_settings.
+    return orderanku_fetch_sheet($force, orderanku_injoko_csv_url(), 'injoko-ijk-v1');
 }
 
 function load_my_open_orders_fixed(int $telegramId, bool $force=false): array {
