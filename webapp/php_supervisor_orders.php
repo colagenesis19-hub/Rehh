@@ -108,3 +108,62 @@ function load_dismantle_for_viewer_php(int $viewerTelegramId,string $targetNik='
     }
     if(!($payload['ok']??false))return$payload; $payload['supervisor']=$supervisor; $payload['read_only']=$supervisor; $payload['selected_nik']=$supervisor?($target===''?'ALL':strtoupper($target)):(string)($viewer['nik']??''); return$payload;
 }
+
+
+/**
+ * HSA web view reads the Google Sheet directly. Do not depend on the local
+ * report history or Telegram assignment mapping, otherwise newly imported or
+ * unassigned WO rows disappear from the website.
+ */
+function load_hsa_orders_from_sheet_php(bool $force=false): array {
+    $refs=orderanku_fetch_sheet($force);
+    $grand=['open'=>0,'close'=>0,'update'=>0];
+    $byArea=[];
+    $techStats=[];
+
+    foreach($refs as $row){
+        $bucket=orderanku_sheet_bucket($row);
+        if(!isset($grand[$bucket])) $bucket='open';
+        $grand[$bucket]++;
+
+        $techName=trim((string)($row['assigned_technician']??''));
+        $techKey=$techName!==''?norm_name($techName):'UNASSIGNED';
+        if(!isset($techStats[$techKey])) $techStats[$techKey]=[
+            'nik'=>'','name'=>$techName!==''?$techName:'BELUM DIASSIGN','sto'=>trim((string)($row['sto']??'')),
+            'open'=>0,'close'=>0,'update'=>0,'total'=>0
+        ];
+        $techStats[$techKey][$bucket]++;
+        $techStats[$techKey]['total']++;
+
+        if($bucket!=='open') continue;
+        $area='INJOKO';
+        $byArea[$area]??=['area'=>$area,'open'=>0,'close'=>0,'update'=>0,'orders'=>[]];
+        $order=order_payload($row);
+        $order['area']=$area;
+        $order['source']='GOOGLE SHEETS';
+        $order['status']=trim((string)($row['status']??'OPEN'))?:'OPEN';
+        $order['technician_name']=$techName!==''?$techName:'BELUM DIASSIGN';
+        $order['technician_nik']='';
+        $byArea[$area]['orders'][]=$order;
+        $byArea[$area]['open']++;
+    }
+
+    $areas=array_values($byArea);
+    foreach($areas as &$area) usort($area['orders'],fn($a,$b)=>strcasecmp((string)($a['technician_name']??''),(string)($b['technician_name']??'')) ?: strnatcasecmp((string)($a['address']??''),(string)($b['address']??'')));
+    unset($area);
+    $stats=array_values($techStats);
+    usort($stats,fn($a,$b)=>($b['total']<=>$a['total']) ?: strcasecmp($a['name'],$b['name']));
+
+    return [
+        'ok'=>true,
+        'technician'=>['telegram_id'=>0,'nik'=>'ALL','name'=>'SEMUA TEKNISI','sto'=>'INJOKO'],
+        'source'=>'GOOGLE SHEETS (LIVE)',
+        'total_count'=>$grand['open']+$grand['close']+$grand['update'],
+        'total_open'=>$grand['open'],
+        'total_close'=>$grand['close'],
+        'total_update'=>$grand['update'],
+        'active_areas'=>count($areas),
+        'technician_stats'=>$stats,
+        'areas'=>$areas
+    ];
+}
