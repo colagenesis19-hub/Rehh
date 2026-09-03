@@ -118,38 +118,53 @@ function load_my_report_php(int $telegramId): array {
         $byService[$service] = $row;
     }
 
-    ensure_workflow_tables();
-    $st = db()->prepare(
-        'SELECT service_number,MAX(completed_at) completed_at
-         FROM miniapp_completed_workflows WHERE telegram_id=?
-         GROUP BY service_number ORDER BY completed_at DESC'
-    );
-    $st->execute([$telegramId]);
-    foreach ($st->fetchAll() as $done) {
-        $service = norm_key($done['service_number'] ?? '');
-        if ($service === '') continue;
-        $completedAt = trim((string)($done['completed_at'] ?? ''));
-        $doneDay = substr($completedAt,0,10);
+    // Reporting must stay read-only. The VPS may run SQLite with a read-only
+    // connection/mount, so never CREATE TABLE merely to display a report.
+    // Workflow tables are created by the write/workflow paths when needed.
+    if (table_exists('miniapp_completed_workflows')) {
+        try {
+            $st = db()->prepare(
+                'SELECT service_number,MAX(completed_at) completed_at
+                 FROM miniapp_completed_workflows WHERE telegram_id=?
+                 GROUP BY service_number ORDER BY completed_at DESC'
+            );
+            $st->execute([$telegramId]);
+            foreach ($st->fetchAll() as $done) {
+                $service = norm_key($done['service_number'] ?? '');
+                if ($service === '') continue;
+                $completedAt = trim((string)($done['completed_at'] ?? ''));
+                $doneDay = substr($completedAt,0,10);
 
-        $hist = db()->prepare(
-            'SELECT ticket_id,sto,created_at FROM histories
-             WHERE telegram_id=? AND service_number=? ORDER BY id DESC LIMIT 1'
-        );
-        $hist->execute([$telegramId,$service]);
-        $history = $hist->fetch() ?: [];
+                $history = [];
+                if (table_exists('histories')) {
+                    try {
+                        $hist = db()->prepare(
+                            'SELECT ticket_id,sto,created_at FROM histories
+                             WHERE telegram_id=? AND service_number=? ORDER BY id DESC LIMIT 1'
+                        );
+                        $hist->execute([$telegramId,$service]);
+                        $history = $hist->fetch() ?: [];
+                    } catch (Throwable $e) {
+                        error_log('[miniapp-php] report history unavailable: ' . $e->getMessage());
+                    }
+                }
 
-        $current = $byService[$service] ?? [];
-        $currentDay = substr((string)($current['raw_day'] ?? ''),0,10);
-        if ($currentDay === '' || ($doneDay !== '' && $doneDay >= $currentDay)) {
-            $current['raw_day'] = $doneDay;
-            $current['date_label'] = display_date_id($doneDay);
+                $current = $byService[$service] ?? [];
+                $currentDay = substr((string)($current['raw_day'] ?? ''),0,10);
+                if ($currentDay === '' || ($doneDay !== '' && $doneDay >= $currentDay)) {
+                    $current['raw_day'] = $doneDay;
+                    $current['date_label'] = display_date_id($doneDay);
+                }
+                $current['service_number'] = $service;
+                $current['ticket_id'] = trim((string)($current['ticket_id'] ?? $history['ticket_id'] ?? 'MANUAL')) ?: 'MANUAL';
+                $current['sto'] = strtoupper(trim((string)($current['sto'] ?? $history['sto'] ?? $tech['sto'] ?? '')));
+                $current['area_label'] = trim((string)($current['area_label'] ?? $current['sto'] ?? '-')) ?: '-';
+                $current['source'] = isset($byService[$service]) ? 'miniapp+report' : 'miniapp';
+                $byService[$service] = $current;
+            }
+        } catch (Throwable $e) {
+            error_log('[miniapp-php] completed workflow report unavailable: ' . $e->getMessage());
         }
-        $current['service_number'] = $service;
-        $current['ticket_id'] = trim((string)($current['ticket_id'] ?? $history['ticket_id'] ?? 'MANUAL')) ?: 'MANUAL';
-        $current['sto'] = strtoupper(trim((string)($current['sto'] ?? $history['sto'] ?? $tech['sto'] ?? '')));
-        $current['area_label'] = trim((string)($current['area_label'] ?? $current['sto'] ?? '-')) ?: '-';
-        $current['source'] = isset($byService[$service]) ? 'miniapp+report' : 'miniapp';
-        $byService[$service] = $current;
     }
 
     $orders = array_values($byService);
