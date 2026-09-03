@@ -16,8 +16,19 @@ function web_auth_start(): void {
     }
 }
 
+function web_auth_file(): string {
+    return dirname(__DIR__) . '/database/web_auth.json';
+}
+
 function web_auth_password_hash(): string {
-    return trim((string)(getenv('WEB_HSA_PASSWORD_HASH') ?: ''));
+    $file=web_auth_file();
+    if (is_file($file)) {
+        $data=json_decode((string)@file_get_contents($file),true);
+        if (is_array($data) && !empty($data['password_hash'])) return trim((string)$data['password_hash']);
+    }
+    // Default first-login password is the HSA NIK itself.
+    $env=trim((string)(getenv('WEB_HSA_PASSWORD_HASH') ?: ''));
+    return $env !== '' ? $env : password_hash('86240021', PASSWORD_DEFAULT);
 }
 
 function web_auth_hsa(): ?array {
@@ -48,9 +59,7 @@ function web_auth_login(array $payload): array {
     $nik=preg_replace('/\D/','',(string)($payload['nik'] ?? '')) ?: '';
     $password=(string)($payload['password'] ?? '');
     if ($nik !== '86240021' || $password === '') return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];
-    $hash=web_auth_password_hash();
-    if ($hash === '') return ['ok'=>false,'error'=>'auth_not_configured','message'=>'Login website belum dikonfigurasi di server.'];
-    if (!password_verify($password,$hash)) return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];
+    if (!password_verify($password,web_auth_password_hash())) return ['ok'=>false,'error'=>'invalid_credentials','message'=>'NIK atau password salah.'];
     $tech=technician_by_nik($nik);
     if (!$tech) return ['ok'=>false,'error'=>'technician_not_registered','message'=>'NIK HSA belum terdaftar di Master Teknisi.'];
     session_regenerate_id(true);
@@ -58,6 +67,25 @@ function web_auth_login(array $payload): array {
     $_SESSION['hsa_telegram_id']=(int)($tech['telegram_id'] ?? 0);
     $_SESSION['hsa_sto']=strtoupper(trim((string)($tech['sto'] ?? '')));
     return ['ok'=>true,'user'=>web_auth_hsa()];
+}
+
+function web_auth_change_password(array $payload): array {
+    $user=web_auth_require_hsa();
+    $new=(string)($payload['new_password'] ?? '');
+    $confirm=(string)($payload['confirm_password'] ?? '');
+    if (strlen($new) < 6) return ['ok'=>false,'error'=>'weak_password','message'=>'Password minimal 6 karakter.'];
+    if ($new !== $confirm) return ['ok'=>false,'error'=>'password_mismatch','message'=>'Konfirmasi password tidak sama.'];
+    $file=web_auth_file();
+    $dir=dirname($file);
+    if (!is_dir($dir) && !@mkdir($dir,0775,true) && !is_dir($dir)) return ['ok'=>false,'error'=>'write_failed','message'=>'Folder penyimpanan login tidak dapat dibuat.'];
+    $data=['nik'=>$user['nik'],'password_hash'=>password_hash($new,PASSWORD_DEFAULT),'updated_at'=>date('c')];
+    $tmp=$file.'.tmp';
+    if (@file_put_contents($tmp,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT),LOCK_EX)===false || !@rename($tmp,$file)) {
+        @unlink($tmp);
+        return ['ok'=>false,'error'=>'write_failed','message'=>'Password gagal disimpan di server.'];
+    }
+    @chmod($file,0600);
+    return ['ok'=>true,'message'=>'Password berhasil diganti.'];
 }
 
 function web_auth_logout(): array {
