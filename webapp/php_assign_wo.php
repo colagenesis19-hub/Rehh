@@ -150,7 +150,7 @@ function assign_wo_list(int $telegramId): array {
         if($name==='') continue;
         $technicians[]=['nik'=>(string)$m['nik'],'name'=>$name,'sto'=>(string)($m['sto']??''),'telegram_id'=>(int)($m['telegram_id']??0)];
     }
-    $refs=orderanku_fetch_sheet(true);
+    $refs=orderanku_fetch_injoko_sheet(true);
     $orders=[];
     foreach($refs as $row){
         if(orderanku_sheet_bucket($row)!=='open') continue;
@@ -176,8 +176,7 @@ function assign_wo_apply(array $payload): array {
         $sto=strtoupper(trim((string)($m['sto']??''))); if($nik===$targetNik && $sto==='IJK'){$target=$m;break;}
     }
     if(!$target) return ['ok'=>false,'error'=>'technician_not_found','message'=>'Teknisi tujuan tidak ditemukan di Master Teknisi.'];
-    $settings=assign_wo_sheet_config();
-    $spreadsheetId=(string)$settings['google_sheet_id'];$gid=(string)$settings['google_sheet_gid'];
+    $spreadsheetId=INJOKO_SPREADSHEET_ID;$gid=INJOKO_SHEET_GID;
     $token=assign_wo_access_token();$sheet=assign_wo_sheet_metadata($token,$spreadsheetId,$gid);$rows=assign_wo_read_sheet($token,$spreadsheetId,$sheet['title']);
     if(!$rows) throw new RuntimeException('Google Sheet kosong atau tidak dapat dibaca.');
     $headers=$rows[0]??[];
