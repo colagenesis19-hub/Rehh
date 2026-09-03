@@ -144,6 +144,10 @@ function assign_wo_list(int $telegramId): array {
     $masters=technician_master_rows();
     $technicians=[];
     foreach($masters as $m){
+        $nik=preg_replace('/\\D/','',(string)($m['nik']??''))?:'';
+        $role=strtoupper(trim((string)($m['role']??'')));
+        // The current website roster is intentionally restricted to HSA only.
+        if($nik!=='86240021' && $role!=='HSA') continue;
         $name=trim((string)($m['canonical_name']??''));
         if($name==='') continue;
         $technicians[]=['nik'=>(string)$m['nik'],'name'=>$name,'sto'=>(string)($m['sto']??''),'telegram_id'=>(int)($m['telegram_id']??0)];
@@ -169,7 +173,11 @@ function assign_wo_apply(array $payload): array {
     $services=array_values(array_unique(array_filter(array_map(static fn($v)=>trim((string)$v),(array)$payload['service_numbers']))));
     if($targetNik===''||!$services) return ['ok'=>false,'error'=>'invalid_request','message'=>'Teknisi dan minimal satu INET wajib dipilih.'];
     $target=null;
-    foreach(technician_master_rows() as $m) if(preg_replace('/\\D/','',(string)$m['nik'])===$targetNik){$target=$m;break;}
+    foreach(technician_master_rows() as $m) {
+        $nik=preg_replace('/\\D/','',(string)($m['nik']??''))?:'';
+        $role=strtoupper(trim((string)($m['role']??'')));
+        if($nik===$targetNik && ($nik==='86240021' || $role==='HSA')){$target=$m;break;}
+    }
     if(!$target) return ['ok'=>false,'error'=>'technician_not_found','message'=>'Teknisi tujuan tidak ditemukan di Master Teknisi.'];
     $settings=assign_wo_sheet_config();
     $spreadsheetId=(string)$settings['google_sheet_id'];$gid=(string)$settings['google_sheet_gid'];
