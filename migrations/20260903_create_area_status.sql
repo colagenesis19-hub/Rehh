@@ -1,0 +1,7 @@
+-- migrations/20260903_create_area_status.sql
+CREATE TABLE IF NOT EXISTS area_status (
+  area_id INT PRIMARY KEY AUTO_INCREMENT,
+  area_name VARCHAR(128) NOT NULL,
+  success_percent TINYINT NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

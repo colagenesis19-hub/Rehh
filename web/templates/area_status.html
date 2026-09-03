@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Area Success Map - INJOKO</title>
+  <style>
+    #legend { display:flex; gap:8px; align-items:center; margin-top:8px; }
+    .legend-swatch { width:200px; height:12px; border-radius:6px; background: linear-gradient(to right, #ff0000, #00ff00); }
+    .area-label { font-size:14px; margin-left:8px; }
+    svg { border:1px solid #ddd; background:#fafafa }
+  </style>
+</head>
+<body>
+  <h1>Area Success Map</h1>
+  <p>Branding header: BOT TEKNISI</p>
+  <!-- Contoh peta: gunakan file KML yang diupload untuk polygon sesungguhnya. Untuk demo, kita tampilkan placeholder SVG dan ID area-1.. -->
+  <svg id="area-map" width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <!-- Placeholder area rectangle; ganti dengan polygons yang dihasilkan dari KML konversi -->
+    <path id="area-1" d="M50,50 L350,50 L350,250 L50,250 Z" stroke="#333" stroke-width="1" fill="#eee"></path>
+    <text id="label-1" x="200" y="150" font-size="16" text-anchor="middle" fill="#000">Ketintang</text>
+    <path id="area-2" d="M400,50 L750,50 L750,250 L400,250 Z" stroke="#333" stroke-width="1" fill="#eee"></path>
+    <text id="label-2" x="575" y="150" font-size="16" text-anchor="middle" fill="#000">Dukuh</text>
+  </svg>
+
+  <div id="legend">
+    <div class="legend-swatch"></div>
+    <div class="area-label">0% (merah) → 100% (hijau)</div>
+  </div>
+
+  <script src="/static/js/percentColor.js"></script>
+  <script>
+    async function loadAreaStatus() {
+      try {
+        const res = await fetch('/api/areas_status.php');
+        const data = await res.json();
+        if (!data.ok) return;
+        data.areas.forEach(area => {
+          const pid = 'area-' + area.area_id;
+          const el = document.getElementById(pid);
+          if (el) {
+            const color = percentToHexColor(parseInt(area.success_percent));
+            el.style.fill = color;
+            const lbl = document.getElementById('label-' + area.area_id);
+            if (lbl) lbl.textContent = `${area.area_name} ${area.success_percent}%`;
+          }
+        });
+      } catch (err) {
+        console.error('loadAreaStatus', err);
+      }
+    }
+    loadAreaStatus();
+  </script>
+</body>
+</html>
