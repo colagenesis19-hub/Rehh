@@ -24,7 +24,7 @@ if(!str_starts_with($path,'/api/')&&$path!=='/health'){$candidate=realpath(__DIR
 try{
  if($method==='GET'&&$path==='/health')respond(['ok'=>true,'backend'=>'php','php'=>PHP_VERSION,'database'=>db_path()]);
  if($method==='POST'&&$path==='/api/web-login'){$result=web_auth_login(input_json());respond($result,($result['ok']??false)?200:401);}
- if($method==='GET'&&$path==='/api/web-session'){$user=web_auth_hsa();respond($user?['ok'=>true,'user'=>$user]:['ok'=>false,'error'=>'web_auth_required'],$user?200:401);}
+ if($method==='GET'&&$path==='/api/web-session'){$user=web_auth_current_user();respond($user?['ok'=>true,'user'=>$user]:['ok'=>false,'error'=>'web_auth_required'],$user?200:401);}
  if($method==='POST'&&$path==='/api/web-logout')respond(web_auth_logout());
  if($method==='POST'&&$path==='/api/web-change-password'){$result=web_auth_change_password(input_json());respond($result,($result['ok']??false)?200:400);}
  if($method==='GET'&&$path==='/api/web-hsa-data'){$user=web_auth_require_hsa();$result=assign_wo_list((int)($user['telegram_id']??0));respond($result,($result['ok']??false)?200:500);}
