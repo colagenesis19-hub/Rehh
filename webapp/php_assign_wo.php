@@ -14,8 +14,15 @@ function assign_wo_b64url(string $value): string {
 }
 
 function assign_wo_credentials(): array {
-    $raw = trim((string)(getenv('GOOGLE_SERVICE_ACCOUNT_JSON') ?: ''));
-    if ($raw === '') throw new RuntimeException('GOOGLE_SERVICE_ACCOUNT_JSON belum dikonfigurasi di container.');
+    // Prefer JSON/path configuration, with FILE kept for backwards compatibility.
+    $raw = trim((string)(
+        getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+        ?: getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+        ?: ''
+    ));
+    if ($raw === '') {
+        throw new RuntimeException('Google service account belum dikonfigurasi di container.');
+    }
     if (is_file($raw)) $raw = (string)file_get_contents($raw);
     $json = json_decode($raw, true);
     if (!is_array($json) || empty($json['client_email']) || empty($json['private_key'])) {
