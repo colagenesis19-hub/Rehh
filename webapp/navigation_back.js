@@ -21,6 +21,7 @@ function smartBack() {
   const dismantleOverlay = document.querySelector('#dismantleOverlay');
   if (dismantleOverlay && !dismantleOverlay.classList.contains('hidden')) { dismantleOverlay.classList.add('hidden'); return; }
   if (page.id === 'inputPage') {
+    if (window.INJOKO_ROLE && ['HSA','OSA','ADMIN','SUPERVISOR'].includes(window.INJOKO_ROLE)) { openPage('dashboardPage'); return; }
     const action = state.workflow?.action;
     if (document.querySelector('#wfOutputs')) { const order=state.workflow?.order; if(action&&order)renderWorkflowForm(action,order);else if(action)startWorkflow(action);else renderWorkflowHome();return; }
     if (document.querySelector('#wfForm')) { const area=currentWorkflowArea();if(action&&area)renderWorkflowAreaOrders(action,area);else if(action)renderWorkflowAreas(action,state.myOpenOrders);else renderWorkflowHome();return; }
@@ -49,7 +50,7 @@ function loadMiniAppScript(src, marker) {
     const existing=document.querySelector(selector);
     if(existing){if(existing.dataset.loaded==='1')resolve();else{existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});}return;}
     const script=document.createElement('script');
-    script.src=`${src}?v=20260903-injoko-fix2`;
+    script.src=`${src}?v=20260903-injoko-fix3`;
     script.setAttribute(`data-${marker}`,'1');
     script.onload=()=>{script.dataset.loaded='1';resolve();};script.onerror=reject;document.body.appendChild(script);
   });
