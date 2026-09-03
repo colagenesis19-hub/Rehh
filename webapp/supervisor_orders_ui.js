@@ -30,30 +30,35 @@
     if(force)p.set('force','1');
     const r=await fetch(`/api/my-open-orders?${p}`,{cache:'no-store'}); const d=await r.json();
     if(!r.ok||!d.ok)throw new Error(d.message||`HTTP ${r.status}`);
-    state.myOpenOrders=d; supervisorMeta=d; ensureSupervisorFilter(d); return d;
+    state.myOpenOrders=d; supervisorMeta=d; ensureSupervisorFilter(d); renderSupervisorSummary(d); return d;
   };
+
+  function renderSupervisorSummary(data) {
+    if (!data?.supervisor) return;
+    const page=document.querySelector('#ordersPage'); const summary=document.querySelector('#myOrderSummary');
+    if(!page||!summary)return;
+    let panel=document.querySelector('#orderSupervisorSummary');
+    if(!panel){panel=document.createElement('section');panel.id='orderSupervisorSummary';panel.className='panel';panel.style.cssText='margin:12px 0;padding:14px;border-color:#31506f';summary.parentNode.insertBefore(panel,summary);}
+    const total=Number(data.total_count||0),open=Number(data.total_open||0),done=Number(data.total_close||0),update=Number(data.total_update||0);
+    const techs=data.technician_stats||[];
+    panel.innerHTML=`<div style="margin-bottom:12px"><strong>📊 REKAP REPLACEMENT</strong><small style="display:block;color:#8095aa;margin-top:3px">Semua teknisi • INJOKO • read only</small></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><div class="mini-stat"><b>${total}</b><small>TOTAL</small></div><div class="mini-stat"><b>${open}</b><small>OPEN</small></div><div class="mini-stat"><b>${done}</b><small>SELESAI</small></div></div>${update?`<div style="margin-top:8px;text-align:center;color:#8095aa;font-size:10px">${update} UPDATE / PROGRESS</div>`:''}<div style="margin-top:14px"><strong style="font-size:11px">PER TEKNISI</strong>${techs.length?techs.map((t,i)=>`<button class="tool-action hsa-tech-row" data-tech-nik="${escS(t.nik)}" style="width:100%;margin-top:7px;text-align:left"><span><b>${i+1}. ${escS(t.name)}</b><small style="display:block;color:#8095aa;margin-top:3px">${escS(t.nik)}${t.sto?` • ${escS(t.sto)}`:''}</small></span><span style="text-align:right"><b>${Number(t.total||0)}</b><small style="display:block;color:#8095aa">${Number(t.open||0)} OPEN • ${Number(t.close||0)} SELESAI</small></span></button>`).join(''):'<small style="display:block;color:#8095aa;margin-top:8px">Belum ada data replacement.</small>'}</div>`;
+    panel.querySelectorAll('.hsa-tech-row').forEach(btn=>btn.addEventListener('click',async()=>{window.__orderTargetNik=btn.dataset.techNik||'ALL';const select=document.querySelector('#orderNikFilter');if(select)select.value=window.__orderTargetNik;await loadMyOpenOrders(false);}));
+  }
 
   function ensureSupervisorFilter(data) {
     const page=document.querySelector('#ordersPage'); const summary=document.querySelector('#myOrderSummary');
     if(!page||!summary)return;
     let panel=document.querySelector('#orderSupervisorFilter');
-    if(!data?.can_filter_nik){ panel?.remove(); return; }
+    if(!data?.can_filter_nik){panel?.remove();document.querySelector('#orderSupervisorSummary')?.remove();return;}
     if(!panel){
-      panel=document.createElement('section'); panel.id='orderSupervisorFilter'; panel.className='panel';
-      panel.style.cssText='margin:12px 0;padding:14px;border-color:#31506f';
-      panel.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px"><div><strong>👁 MODE ATASAN</strong><small style="display:block;color:#8095aa;margin-top:3px">Order semua teknisi • read only</small></div><span style="font-size:9px;color:#78dcb4">READ ONLY</span></div><label style="display:block;color:#8298ae;font-size:9px;margin-bottom:5px">FILTER NIK TEKNISI</label><select id="orderNikFilter" style="width:100%;border:1px solid #2d4c6a;background:#081827;color:#eef7ff;border-radius:12px;padding:11px"></select>`;
+      panel=document.createElement('section'); panel.id='orderSupervisorFilter'; panel.className='panel'; panel.style.cssText='margin:12px 0;padding:14px;border-color:#31506f';
+      panel.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px"><div><strong>👁 MODE HSA</strong><small style="display:block;color:#8095aa;margin-top:3px">Order semua teknisi • read only</small></div><span style="font-size:9px;color:#78dcb4">READ ONLY</span></div><label style="display:block;color:#8298ae;font-size:9px;margin-bottom:5px">FILTER NIK TEKNISI</label><select id="orderNikFilter" style="width:100%;border:1px solid #2d4c6a;background:#081827;color:#eef7ff;border-radius:12px;padding:11px"></select>`;
       summary.parentNode.insertBefore(panel,summary);
-      panel.querySelector('#orderNikFilter').addEventListener('change',async e=>{
-        window.__orderTargetNik=e.target.value;
-        await loadMyOpenOrders(false);
-        window.dispatchEvent(new CustomEvent('order-supervisor-filter-change',{detail:{targetNik:window.__orderTargetNik}}));
-      });
+      panel.querySelector('#orderNikFilter').addEventListener('change',async e=>{window.__orderTargetNik=e.target.value;await loadMyOpenOrders(false);window.dispatchEvent(new CustomEvent('order-supervisor-filter-change',{detail:{targetNik:window.__orderTargetNik}}));});
     }
-    const select=panel.querySelector('#orderNikFilter');
-    const selected=String(data.selected_nik||'ALL').toUpperCase();
+    const select=panel.querySelector('#orderNikFilter'); const selected=String(data.selected_nik||'ALL').toUpperCase();
     select.innerHTML=`<option value="ALL">ALL • SEMUA TEKNISI</option>`+(data.technicians||[]).map(t=>`<option value="${escS(t.nik)}">${escS(t.nik)} • ${escS(t.name)}</option>`).join('');
-    select.value=selected==='ALL'?'ALL':selected;
-    window.__orderTargetNik=select.value;
+    select.value=selected==='ALL'?'ALL':selected; window.__orderTargetNik=select.value;
   }
 
   window.renderMyOpenArea = function renderSupervisorOpenArea(area) {
