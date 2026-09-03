@@ -240,7 +240,7 @@ function search_open_orders(int $telegramId,string $query,bool $force=false): ar
 function area_condition(string $area): array {
     $area=strtoupper(trim($area));
     if($area==='JGR')return ["EXISTS (SELECT 1 FROM report_area_orders ra WHERE ra.service_number=r.service_number AND ra.period_start=r.period_start AND UPPER(TRIM(ra.sto_code))=?)",['JGR']];
-    if($area==='MYR')return ["(EXISTS (SELECT 1 FROM report_area_orders ra WHERE ra.service_number=r.service_number AND ra.period_start=r.period_start AND UPPER(TRIM(ra.sto_code))=?) OR (NOT EXISTS (SELECT 1 FROM report_area_orders ra0 WHERE ra0.service_number=r.service_number AND ra0.period_start=r.period_start) AND EXISTS (SELECT 1 FROM orders o WHERE o.service_number=r.service_number AND UPPER(TRIM(o.sto))=?)))",['MYR','MYR']];
+    if(in_array($area,['MYR','IJK'],true))return ["(EXISTS (SELECT 1 FROM report_area_orders ra WHERE ra.service_number=r.service_number AND ra.period_start=r.period_start AND UPPER(TRIM(ra.sto_code))=?) OR (NOT EXISTS (SELECT 1 FROM report_area_orders ra0 WHERE ra0.service_number=r.service_number AND ra0.period_start=r.period_start) AND EXISTS (SELECT 1 FROM orders o WHERE o.service_number=r.service_number AND UPPER(TRIM(o.sto))=?)))",[$area,$area]];
     return ['1=1',[]];
 }
 
@@ -273,7 +273,7 @@ function group_report_rows(array $rows): array {
 
 function load_rca_summary(string $area): array {
     $area=strtoupper(trim($area));$merged=[];
-    try{foreach(fetch_sheet(false) as $r){$service=trim((string)$r['service_number']);if($service==='')continue;$sto=strtoupper(trim((string)$r['sto']));if(in_array($area,['MYR','JGR'],true)&&$sto!==''&&$sto!==$area)continue;$rca=norm($r['rca']);if($rca!==''&&!in_array($rca,['-','N/A','NA','NONE','#N/A'],true))$merged[$service]=['rca'=>$rca,'source'=>'SHEET'];}}catch(Throwable){}
+    try{foreach(fetch_sheet(false) as $r){$service=trim((string)$r['service_number']);if($service==='')continue;$sto=strtoupper(trim((string)$r['sto']));if(in_array($area,['MYR','JGR','IJK'],true)&&$sto!==''&&$sto!==$area)continue;$rca=norm($r['rca']);if($rca!==''&&!in_array($rca,['-','N/A','NA','NONE','#N/A'],true))$merged[$service]=['rca'=>$rca,'source'=>'SHEET'];}}catch(Throwable){}
     if(table_exists('kendala_updates')){try{$rows=db()->query("SELECT k.service_number,k.rca FROM kendala_updates k JOIN (SELECT service_number,MAX(id) max_id FROM kendala_updates GROUP BY service_number) x ON x.max_id=k.id ORDER BY k.id DESC")->fetchAll();foreach($rows as $r){$service=trim((string)$r['service_number']);$rca=norm($r['rca']);if($service===''||$rca===''||in_array($rca,['-','N/A','NA','NONE','#N/A'],true))continue;$sto='';if(table_exists('report_area_orders')){$st=db()->prepare('SELECT sto_code FROM report_area_orders WHERE service_number=? ORDER BY period_start DESC LIMIT 1');$st->execute([$service]);$sto=strtoupper(trim((string)($st->fetchColumn()?:'')));}if(in_array($area,['MYR','JGR'],true)&&$sto!==$area)continue;$merged[$service]=['rca'=>$rca,'source'=>'KENDALA'];}}catch(Throwable){}}
     $counts=[];$sheet=0;$kendala=0;foreach($merged as $v){$counts[$v['rca']]=($counts[$v['rca']]??0)+1;$v['source']==='KENDALA'?$kendala++:$sheet++;}arsort($counts);$total=array_sum($counts);$items=[];foreach($counts as $label=>$count)$items[]=['label'=>$label,'count'=>$count,'percent'=>$total?round($count*100/$total,1):0];return['total'=>$total,'items'=>$items,'source'=>'Google Sheet + Grup Kendala','sheet_count'=>$sheet,'kendala_count'=>$kendala];
 }
