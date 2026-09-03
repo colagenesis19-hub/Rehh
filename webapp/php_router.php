@@ -10,6 +10,7 @@ require __DIR__ . '/php_supervisor_report.php';
 require __DIR__ . '/php_supervisor_orders.php';
 require __DIR__ . '/php_unified_workflow.php';
 require __DIR__ . '/php_technician_master.php';
+require __DIR__ . '/php_technician_profile.php';
 require __DIR__ . '/php_technician_master_bootstrap.php';
 
 function respond(mixed $payload, int $status=200): never {
@@ -44,21 +45,21 @@ if (!str_starts_with($path, '/api/') && $path !== '/health') {
 }
 
 try {
-    // IMPORTANT: do not bootstrap/normalize technician master for every API request.
-    // Dashboard, report, orders and health must remain read-mostly because the
-    // Telegram bot shares the same SQLite file and may be writing concurrently.
     if ($method === 'GET' && $path === '/health') respond(['ok'=>true,'backend'=>'php','php'=>PHP_VERSION,'database'=>db_path()]);
-    if ($method === 'GET' && $path === '/api/dashboard') {
-        // Client-side identity normalization remains active. Avoid master DB writes
-        // on this hot read endpoint to prevent SQLITE_BUSY / database is locked.
-        respond(load_dashboard_php((string)($_GET['area'] ?? 'ALL'), (string)($_GET['period'] ?? 'daily')));
-    }
+    if ($method === 'GET' && $path === '/api/dashboard') respond(load_dashboard_php((string)($_GET['area'] ?? 'ALL'), (string)($_GET['period'] ?? 'daily')));
     if ($method === 'GET' && $path === '/api/rca-summary') respond(load_rca_summary_php((string)($_GET['area'] ?? 'ALL')));
     if ($method === 'GET' && $path === '/api/technician') {
         $key = trim((string)($_GET['key'] ?? $_GET['nik'] ?? ''));
         if ($key === '') respond(['error'=>'key required'], 400);
         if (!str_starts_with($key,'NAME:') && !str_starts_with($key,'NIK:')) $key='NIK:'.norm_key($key);
         respond(load_technician($key,(string)($_GET['area'] ?? 'ALL')));
+    }
+    if ($method === 'GET' && $path === '/api/technician-profile') {
+        $raw=trim((string)($_GET['telegram_id'] ?? '')); if(!ctype_digit($raw))respond(['ok'=>false,'error'=>'telegram_id_required'],400);
+        $result=technician_profile_get((int)$raw); respond($result,($result['ok']??false)?200:404);
+    }
+    if ($method === 'POST' && $path === '/api/technician-profile') {
+        $result=technician_profile_save(input_json()); respond($result,($result['ok']??false)?200:400);
     }
     if ($method === 'GET' && $path === '/api/technician-master') {
         technician_master_bootstrap();
@@ -98,8 +99,8 @@ try {
     }
     if ($method === 'GET' && $path === '/api/unified-workflow') {$raw=trim((string)($_GET['telegram_id'] ?? ''));if (!ctype_digit($raw)) respond(['ok'=>false,'error'=>'telegram_id_required'],400);$result=unified_get_workflow_state((int)$raw,(string)($_GET['service_number'] ?? ''),(string)($_GET['ticket_id'] ?? ''));$status=($result['ok']??false)?200:(($result['error']??'')==='forbidden'?403:404);respond($result,$status);}
     if ($method === 'POST' && $path === '/api/unified-workflow') {$result=unified_sync_workflow_payload(input_json());respond($result,($result['ok']??false)?200:400);}
-    if ($method === 'GET' && $path === '/api/workflow-drafts') {$raw=trim((string)($_GET['telegram_id'] ?? ''));if (!ctype_digit($raw)) respond(['ok'=>false,'error'=>'telegram_id_required'],400);$result=load_workflow_drafts((int)$raw);respond($result,$result['ok']?200:404);}
-    if ($method === 'POST' && $path === '/api/workflow-drafts') {$payload=input_json();$result=save_workflow_draft($payload);if ($result['ok'] ?? false) {$sync=unified_sync_workflow_payload($payload);$result['unified_sync']=$sync['ok']??false;if ($sync['ok']??false) $result['master_updated_at']=$sync['updated_at']??null;}respond($result,$result['ok']?200:400);}
+    if ($method === 'GET' && $path === '/api/workflow-drafts') {$raw=trim((string)($_GET['telegram_id'] ?? ''));if(!ctype_digit($raw))respond(['ok'=>false,'error'=>'telegram_id_required'],400);$result=load_workflow_drafts((int)$raw);respond($result,$result['ok']?200:404);}
+    if ($method === 'POST' && $path === '/api/workflow-drafts') {$payload=input_json();$result=save_workflow_draft($payload);if($result['ok']??false){$sync=unified_sync_workflow_payload($payload);$result['unified_sync']=$sync['ok']??false;$result['master_updated_at']=$sync['updated_at']??null;}respond($result,$result['ok']?200:400);}
     if ($method === 'DELETE' && $path === '/api/workflow-drafts') {$raw=trim((string)($_GET['telegram_id']??''));if(!ctype_digit($raw))respond(['ok'=>false,'error'=>'telegram_id_required'],400);respond(delete_workflow_draft((int)$raw,(string)($_GET['action']??''),(string)($_GET['service_number']??'')));}
     if ($method === 'GET' && $path === '/api/workflow-history') {$raw=trim((string)($_GET['telegram_id']??''));$service=trim((string)($_GET['service_number']??''));if(!ctype_digit($raw)||$service==='')respond(['ok'=>false,'error'=>'invalid_request'],400);respond(['ok'=>true,'service_number'=>$service,'items'=>workflow_history((int)$raw,$service)]);}
     if ($method === 'POST' && $path === '/api/workflow-history') {$p=input_json();$raw=(string)($p['telegram_id']??'');$hid=(string)($p['history_id']??'');if(!ctype_digit($raw)||!ctype_digit($hid))respond(['ok'=>false,'error'=>'invalid_request'],400);$ok=update_history((int)$raw,(int)$hid,(string)($p['content']??''));respond(['ok'=>$ok],$ok?200:404);}
