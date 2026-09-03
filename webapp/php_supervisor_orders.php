@@ -18,24 +18,46 @@ function decorate_supervisor_order_payload(array $payload, array $tech): array {
 
 function merge_all_open_orders_php(bool $force=false): array {
     $byArea=[];
+    $techStats=[];
+    $grand=['open'=>0,'close'=>0,'update'=>0];
+
     foreach (report_filter_technicians() as $tech) {
-        $tid=(int)($tech['telegram_id'] ?? 0); if ($tid<=0) continue;
+        $tid=(int)($tech['telegram_id'] ?? 0); if($tid<=0) continue;
         $payload=load_my_open_orders_fixed($tid,$force); if (!($payload['ok'] ?? false)) continue;
         $payload=decorate_supervisor_order_payload($payload,$tech);
+
+        $stat=['nik'=>(string)($tech['nik']??''),'name'=>(string)($tech['name']??'-'),'sto'=>(string)($tech['sto']??''),'open'=>0,'close'=>0,'update'=>0,'total'=>0];
         foreach (($payload['areas'] ?? []) as $area) {
             $name=(string)($area['area'] ?? 'LAINNYA');
+            $open=(int)($area['open'] ?? 0); $close=(int)($area['close'] ?? 0); $update=(int)($area['update'] ?? 0);
             $byArea[$name] ??= ['area'=>$name,'open'=>0,'close'=>0,'update'=>0,'orders'=>[]];
-            $byArea[$name]['open'] += (int)($area['open'] ?? 0);
-            $byArea[$name]['close'] += (int)($area['close'] ?? 0);
-            $byArea[$name]['update'] += (int)($area['update'] ?? 0);
+            $byArea[$name]['open'] += $open; $byArea[$name]['close'] += $close; $byArea[$name]['update'] += $update;
             foreach (($area['orders'] ?? []) as $order) $byArea[$name]['orders'][]=$order;
+            $stat['open'] += $open; $stat['close'] += $close; $stat['update'] += $update;
         }
+        $stat['total']=$stat['open']+$stat['close']+$stat['update'];
+        $techStats[]=$stat;
+        $grand['open'] += $stat['open']; $grand['close'] += $stat['close']; $grand['update'] += $stat['update'];
     }
+
+    usort($techStats,fn($a,$b)=>($b['total']<=>$a['total']) ?: strcasecmp($a['name'],$b['name']));
     $areas=array_values($byArea);
     foreach($areas as &$area) usort($area['orders'],fn($a,$b)=>strcmp((string)($a['technician_name']??''),(string)($b['technician_name']??'')) ?: strnatcasecmp((string)($a['address']??''),(string)($b['address']??'')));
     unset($area);
     usort($areas,fn($a,$b)=>($a['area']==='JAGIR'?1:0)<=>($b['area']==='JAGIR'?1:0) ?: strcmp($a['area'],$b['area']));
-    return ['ok'=>true,'technician'=>['telegram_id'=>0,'nik'=>'ALL','name'=>'SEMUA TEKNISI','sto'=>'ALL'],'source'=>'ORDER SHEET (MYR) + WORK ORDER JAGIR (JGR)','total_open'=>array_sum(array_column($areas,'open')),'active_areas'=>count($areas),'areas'=>$areas];
+
+    return [
+        'ok'=>true,
+        'technician'=>['telegram_id'=>0,'nik'=>'ALL','name'=>'SEMUA TEKNISI','sto'=>'ALL'],
+        'source'=>'INJOKO • REPLACEMENT',
+        'total_count'=>$grand['open']+$grand['close']+$grand['update'],
+        'total_open'=>$grand['open'],
+        'total_close'=>$grand['close'],
+        'total_update'=>$grand['update'],
+        'active_areas'=>count($areas),
+        'technician_stats'=>$techStats,
+        'areas'=>$areas
+    ];
 }
 
 function load_orders_for_viewer_php(int $viewerTelegramId,string $targetNik='',bool $force=false): array {
@@ -50,6 +72,12 @@ function load_orders_for_viewer_php(int $viewerTelegramId,string $targetNik='',b
         $tech=order_target_by_nik($target); if(!$tech)return['ok'=>false,'error'=>'technician_not_found','message'=>'NIK teknisi tidak ditemukan.'];
         $tid=(int)($tech['telegram_id']??0); if($tid<=0)return['ok'=>false,'error'=>'technician_not_linked','message'=>'Teknisi belum terhubung ke akun Telegram.'];
         $payload=decorate_supervisor_order_payload(load_my_open_orders_fixed($tid,$force),$tech);
+        $stat=['nik'=>(string)($tech['nik']??''),'name'=>(string)($tech['name']??'-'),'sto'=>(string)($tech['sto']??''),'open'=>0,'close'=>0,'update'=>0,'total'=>0];
+        foreach(($payload['areas']??[]) as $area){$stat['open']+=(int)($area['open']??0);$stat['close']+=(int)($area['close']??0);$stat['update']+=(int)($area['update']??0);}
+        $stat['total']=$stat['open']+$stat['close']+$stat['update'];
+        $payload['technician_stats']=[$stat];
+        $payload['total_count']=$stat['total']; $payload['total_open']=$stat['open']; $payload['total_close']=$stat['close']; $payload['total_update']=$stat['update'];
+        $payload['source']='INJOKO • REPLACEMENT';
     }
     if(!($payload['ok']??false))return$payload;
     $payload['viewer']=['telegram_id'=>$viewerTelegramId,'nik'=>(string)($viewer['nik']??''),'name'=>(string)($viewer['name']??'-')];
