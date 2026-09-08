@@ -182,7 +182,7 @@ function load_my_open_orders_fixed(int $telegramId, bool $force=false): array {
     $tech = technician_by_telegram($telegramId);
     if (!$tech) return ['ok'=>false,'error'=>'technician_not_registered','message'=>'Akun Telegram belum terdaftar sebagai teknisi.'];
 
-    $refs = orderanku_fetch_sheet($force);
+    $refs = orderanku_fetch_injoko_sheet($force);
     $wanted = norm_name($tech['name'] ?? '');
     $summary = ['open'=>0,'close'=>0,'update'=>0];
     $orders = [];
