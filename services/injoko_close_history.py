@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS injoko_close_reports (
     source_message_id INTEGER,
     source_message_date TEXT,
     UNIQUE(service_number, report_date, source_message_id)
-)
+);
 CREATE INDEX IF NOT EXISTS idx_injoko_close_service ON injoko_close_reports(service_number);
 CREATE INDEX IF NOT EXISTS idx_injoko_close_ticket ON injoko_close_reports(ticket_id);
 """
