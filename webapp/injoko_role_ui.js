@@ -43,7 +43,7 @@
   }
   function loadHsaUi(){if(window.__hsaUiLoaded)return;window.__hsaUiLoaded=true;['/hsa_injoko_ui.js?v=20260908','/hsa_period_ui.js?v=20260908'].forEach(src=>{const s=document.createElement('script');s.src=src;s.async=false;document.head.appendChild(s);});}
   window.INJOKO_APPLY_BRANDING=applyBranding;window.INJOKO_APPLY_ROLE=applyRole;window.INJOKO_OPEN_ASSIGN_WO=openAssignWO;
-  function boot(){applyBranding();loadRole();loadHsaUi();setTimeout(()=>{applyBranding();protectManagerWorkflow();},700);}
+  async function boot(){applyBranding();await loadRole();loadHsaUi();setTimeout(()=>{applyBranding();protectManagerWorkflow();},700);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
   window.addEventListener('pageshow',()=>{applyBranding();loadRole();});
 })();
