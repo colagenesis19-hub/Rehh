@@ -25,6 +25,8 @@ from services.bot_commands_guide import perintah_command
 from services.daily_recap import initialize_recap_delivery_log, recap_harian_command, recap_mingguan_command, send_daily_recaps, send_previous_week_recaps_once, send_weekly_recaps
 from services.dismantle_orders import capture_dismantle_order, initialize_dismantle_orders
 from services.google_sheet_reference import get_reference_statuses, initialize_sheet_config, sync_missing_orders_from_sheet
+from services.injoko_close_history import apply_to_local_orders, ensure_table as ensure_injoko_close_table
+from services.injoko_history_import import importinjokohistory_command, importinjokohistory_document
 from services.jagir_work_orders import capture_jagir_work_order, remember_technician_username
 from services.logic_dispatch import detect_logic_group, ignore_group_message
 from services.manja_reminder import send_manja_reminders
@@ -53,7 +55,8 @@ async def auto_sync_google_sheet(context) -> None:
         database_path = app.bot_data["settings"].database_path
         statuses = await get_reference_statuses(force=True, raise_errors=True)
         total, inserted, updated, unchanged = await sync_missing_orders_from_sheet(database_path, statuses)
-        logging.info("Google Sheet auto-sync complete: total=%s inserted=%s updated=%s unchanged=%s", total, inserted, updated, unchanged)
+        closed = await asyncio.to_thread(apply_to_local_orders, database_path)
+        logging.info("Google Sheet auto-sync complete: total=%s inserted=%s updated=%s unchanged=%s injoko_closed=%s", total, inserted, updated, unchanged, closed)
     except Exception:
         logging.exception("Google Sheet auto-sync failed; keeping previous data")
 
@@ -102,6 +105,8 @@ async def post_init(application: Application) -> None:
     await db.initialize()
     await orders.initialize()
     await initialize_sheet_config(application.bot_data["settings"].database_path)
+    await asyncio.to_thread(ensure_injoko_close_table, application.bot_data["settings"].database_path)
+    await asyncio.to_thread(apply_to_local_orders, application.bot_data["settings"].database_path)
     await initialize_dismantle_orders(application.bot_data["settings"].database_path)
     await initialize_recap_delivery_log(db)
     try:
@@ -173,8 +178,10 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("laporan", laporan_command))
     app.add_handler(CommandHandler("importhistory", importhistory_command))
     app.add_handler(CommandHandler("importreplacementhistory", importreplacementhistory_command))
+    app.add_handler(CommandHandler("importinjokohistory", importinjokohistory_command))
     app.add_handler(CommandHandler("cancelimporthistory", importhistory_cancel))
     app.add_handler(CommandHandler("exportreport", exportreport_command))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.Document.ALL, importinjokohistory_document))
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.Document.ALL, import_legacy_replacement_document))
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.Document.ALL, import_history_document))
     for handler in build_excel_status_handlers(): app.add_handler(handler)
