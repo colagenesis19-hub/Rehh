@@ -126,15 +126,23 @@ if($path==='/api/technician' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')===
     require_once __DIR__.'/php_dashboard_identity_readonly.php';require_once __DIR__.'/php_technician_detail_readonly.php';header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     try{$key=trim((string)($_GET['key']??''));if($key===''){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'key_required']);exit;}$area=strtoupper(trim((string)($_GET['area']??'ALL')));$payload=($area==='ALL'||$area==='IJK')?load_injoko_technician_detail_php($key,$area):technician_detail_readonly($key,$area);echo json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}catch(Throwable $e){error_log('[miniapp-php] technician detail canonical read: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());http_response_code(500);echo json_encode(['ok'=>false,'error'=>'internal_error','message'=>'Detail teknisi gagal dimuat.']);exit;}
 }
+function entry_json_response(mixed $payload,int $status=200):never{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    echo json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 if($path==='/api/workflow-complete' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     try{
         $result=complete_workflow(input_json());
-        respond($result,($result['ok']??false)?200:400);
+        entry_json_response($result,($result['ok']??false)?200:400);
     }catch(Throwable $e){
         error_log('[miniapp-php] workflow complete: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
-        respond([
+        entry_json_response([
             'ok'=>false,
             'error'=>'internal_error',
             'message'=>'Workflow gagal disimpan.'
@@ -148,13 +156,13 @@ if($path==='/api/workflow-drafts' && strtoupper($_SERVER['REQUEST_METHOD']??'GET
     try{
         $raw=trim((string)($_GET['telegram_id']??''));
         if(!ctype_digit($raw)){
-            respond(['ok'=>false,'error'=>'telegram_id_required'],400);
+            entry_json_response(['ok'=>false,'error'=>'telegram_id_required'],400);
         }
         $result=load_workflow_drafts((int)$raw);
-        respond($result,($result['ok']??false)?200:400);
+        entry_json_response($result,($result['ok']??false)?200:400);
     }catch(Throwable $e){
         error_log('[miniapp-php] workflow drafts GET: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
-        respond([
+        entry_json_response([
             'ok'=>false,
             'error'=>'internal_error',
             'message'=>'Draft workflow gagal dimuat.'
@@ -167,10 +175,10 @@ if($path==='/api/workflow-drafts' && strtoupper($_SERVER['REQUEST_METHOD']??'GET
     header('Cache-Control: no-store');
     try{
         $result=save_workflow_draft(input_json());
-        respond($result,($result['ok']??false)?200:400);
+        entry_json_response($result,($result['ok']??false)?200:400);
     }catch(Throwable $e){
         error_log('[miniapp-php] workflow drafts POST: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
-        respond([
+        entry_json_response([
             'ok'=>false,
             'error'=>'internal_error',
             'message'=>'Draft workflow gagal disimpan.'
@@ -187,10 +195,10 @@ if($path==='/api/workflow-drafts' && strtoupper($_SERVER['REQUEST_METHOD']??'GET
         $service=trim((string)($_GET['service_number']??''));
 
         if(!ctype_digit($raw)){
-            respond(['ok'=>false,'error'=>'telegram_id_required'],400);
+            entry_json_response(['ok'=>false,'error'=>'telegram_id_required'],400);
         }
         if($action==='' || $service===''){
-            respond(['ok'=>false,'error'=>'invalid_request'],400);
+            entry_json_response(['ok'=>false,'error'=>'invalid_request'],400);
         }
 
         $result=delete_workflow_draft(
@@ -199,10 +207,10 @@ if($path==='/api/workflow-drafts' && strtoupper($_SERVER['REQUEST_METHOD']??'GET
             $service
         );
 
-        respond($result,($result['ok']??false)?200:400);
+        entry_json_response($result,($result['ok']??false)?200:400);
     }catch(Throwable $e){
         error_log('[miniapp-php] workflow drafts DELETE: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
-        respond([
+        entry_json_response([
             'ok'=>false,
             'error'=>'internal_error',
             'message'=>'Draft workflow gagal dihapus.'
