@@ -2,15 +2,72 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from typing import Any
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from services.injoko_close_history import apply_to_local_orders, import_reports
-from services.legacy_replacement_import import _flatten, _messages, parse_replacement
 
 PENDING_KEY = "injoko_close_history_import"
+FIELD_RE = re.compile(r"(?im)^\s*(TANGGAL|NIK|NAMA|TIKET\s*ID|NO\s*INET|SN\s*ONT\s*LAMA|SN\s*ONT\s*BARU|VALINS\s*ID|RESULT|KETERANGAN)\s*[:：=]\s*(.*)$")
+
+
+def _flatten(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "".join(x if isinstance(x, str) else x.get("text", "") if isinstance(x, dict) else "" for x in value)
+    return ""
+
+
+def _messages(payload: Any) -> list[dict[str, Any]]:
+    return [x for x in payload.get("messages", []) if isinstance(x, dict)] if isinstance(payload, dict) else []
+
+
+def _clean(value: str) -> str:
+    return re.sub(r"\s+", " ", value.replace("\u00a0", " ")).strip()
+
+
+def _parse_close_report(text: str) -> dict[str, str] | None:
+    normalized = text.replace("\u00a0", " ")
+    upper = normalized.upper()
+    if "/REPORT" not in upper or "REPLACEMENT ONT" not in upper:
+        return None
+    if not re.search(r"(?im)RESULT\s*[:：=]\s*CLOSE\b", normalized):
+        return None
+
+    fields: dict[str, str] = {}
+    for key, value in FIELD_RE.findall(normalized):
+        fields[re.sub(r"\s+", " ", key.upper()).strip()] = _clean(value)
+
+    service = re.sub(r"\D", "", fields.get("NO INET", ""))
+    if len(service) < 8 or not fields.get("NAMA"):
+        return None
+
+    ticket = fields.get("TIKET ID", "")
+    if re.match(r"^(?:NO INET|SN ONT LAMA|SN ONT BARU|VALINS ID)\s*[:：=]", ticket, re.I):
+        ticket = ""
+    if ticket.upper() in {"MANUAL", "N/A", "NA", "NONE", "-"}:
+        ticket = ""
+
+    valins = fields.get("VALINS ID", "")
+    if re.match(r"^(?:RESULT|KETERANGAN)\s*[:：=]", valins, re.I):
+        valins = ""
+
+    return {
+        "report_date": fields.get("TANGGAL", ""),
+        "nik": fields.get("NIK", ""),
+        "name": fields.get("NAMA", ""),
+        "ticket_id": ticket,
+        "service_number": service,
+        "old_sn": fields.get("SN ONT LAMA", ""),
+        "new_sn": fields.get("SN ONT BARU", ""),
+        "valins_id": valins,
+        "result": "CLOSE",
+        "description": fields.get("KETERANGAN", ""),
+    }
 
 
 async def importinjokohistory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -57,10 +114,8 @@ async def importinjokohistory_document(update: Update, context: ContextTypes.DEF
     scanned = 0
     for item in _messages(payload):
         scanned += 1
-        data = parse_replacement(_flatten(item.get("text")))
+        data = _parse_close_report(_flatten(item.get("text")))
         if not data:
-            continue
-        if data.get("result", "").upper() not in {"CLOSE", "CLOSED", "DONE", "SELESAI", "COMPLETED"}:
             continue
         reports.append({
             **data,
