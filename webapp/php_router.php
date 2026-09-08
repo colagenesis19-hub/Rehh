@@ -1,19 +1,19 @@
 <?php
 
 declare(strict_types=1);
-require __DIR__ . '/php_backend.php';
-require __DIR__ . '/php_compat.php';
-require __DIR__ . '/php_manja.php';
-require __DIR__ . '/php_orderanku_fix.php';
-require __DIR__ . '/php_dismantle.php';
-require __DIR__ . '/php_supervisor_report.php';
-require __DIR__ . '/php_supervisor_orders.php';
-require __DIR__ . '/php_unified_workflow.php';
-require __DIR__ . '/php_technician_master.php';
-require __DIR__ . '/php_technician_profile.php';
-require __DIR__ . '/php_technician_master_bootstrap.php';
-require __DIR__ . '/php_assign_wo.php';
-require __DIR__ . '/php_web_auth.php';
+require_once __DIR__ . '/php_backend.php';
+require_once __DIR__ . '/php_compat.php';
+require_once __DIR__ . '/php_manja.php';
+require_once __DIR__ . '/php_orderanku_fix.php';
+require_once __DIR__ . '/php_dismantle.php';
+require_once __DIR__ . '/php_supervisor_report.php';
+require_once __DIR__ . '/php_supervisor_orders.php';
+require_once __DIR__ . '/php_unified_workflow.php';
+require_once __DIR__ . '/php_technician_master.php';
+require_once __DIR__ . '/php_technician_profile.php';
+require_once __DIR__ . '/php_technician_master_bootstrap.php';
+require_once __DIR__ . '/php_assign_wo.php';
+require_once __DIR__ . '/php_web_auth.php';
 function respond(mixed $payload,int $status=200):never{http_response_code($status);header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');echo json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
 function input_json():array{$raw=file_get_contents('php://input')?:'{}';$data=json_decode($raw,true);return is_array($data)?$data:[];}
 function serve_static_no_cache(string $file):never{$ext=strtolower(pathinfo($file,PATHINFO_EXTENSION));$types=['html'=>'text/html; charset=utf-8','js'=>'application/javascript; charset=utf-8','css'=>'text/css; charset=utf-8','json'=>'application/json; charset=utf-8','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','ico'=>'image/x-icon'];header('Content-Type: '.($types[$ext]??'application/octet-stream'));header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');header('Pragma: no-cache');header('Expires: 0');readfile($file);exit;}
