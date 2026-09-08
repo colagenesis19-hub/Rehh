@@ -27,3 +27,4 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./database:/app/database
+      - ./secrets:/app/secrets:ro
