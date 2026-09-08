@@ -32,7 +32,6 @@ if($path==='/api/technician-profile') {
     }
 }
 
-// Fast read-only route: opening/searching Master Teknisi must never run legacy normalization.
 if($path==='/api/technician-master' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='GET') {
     require_once __DIR__.'/php_backend.php';
     require_once __DIR__.'/php_technician_master.php';
@@ -51,17 +50,19 @@ if($path==='/api/technician-master' && strtoupper($_SERVER['REQUEST_METHOD']??'G
     }
 }
 
-// Dashboard identity repair is read-only: fill a missing NIK from the registered
-// technician directory only when the name match is unique. No master bootstrap,
-// normalization, or database writes run on this hot endpoint.
 if($path==='/api/dashboard' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='GET') {
     require_once __DIR__.'/php_backend.php';
     require_once __DIR__.'/php_compat.php';
+    require_once __DIR__.'/php_injoko_dashboard.php';
     require_once __DIR__.'/php_dashboard_identity_readonly.php';
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     try {
-        $payload=load_dashboard_php((string)($_GET['area']??'ALL'),(string)($_GET['period']??'daily'));
+        $area=strtoupper(trim((string)($_GET['area']??'ALL')));
+        $period=strtolower(trim((string)($_GET['period']??'daily')));
+        $payload=($area==='ALL'||$area==='IJK')
+            ? load_injoko_dashboard_php($area,$period)
+            : load_dashboard_php($area,$period);
         echo json_encode(dashboard_identity_fill_missing_nik($payload),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
     } catch(Throwable $e) {
         error_log('[miniapp-php] dashboard identity read: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
@@ -69,17 +70,20 @@ if($path==='/api/dashboard' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='
     }
 }
 
-// Technician detail must use the same canonical NIK resolver as the leaderboard.
 if($path==='/api/technician' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='GET') {
     require_once __DIR__.'/php_backend.php';
     require_once __DIR__.'/php_dashboard_identity_readonly.php';
     require_once __DIR__.'/php_technician_detail_readonly.php';
+    require_once __DIR__.'/php_injoko_dashboard.php';
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     try {
         $key=trim((string)($_GET['key']??''));
         if($key===''){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'key_required']);exit;}
-        $payload=technician_detail_readonly($key,(string)($_GET['area']??'ALL'));
+        $area=strtoupper(trim((string)($_GET['area']??'ALL')));
+        $payload=($area==='ALL'||$area==='IJK')
+            ? load_injoko_technician_detail_php($key,$area)
+            : technician_detail_readonly($key,$area);
         echo json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
     } catch(Throwable $e) {
         error_log('[miniapp-php] technician detail canonical read: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
