@@ -11,7 +11,8 @@ from telegram.ext import ContextTypes
 from services.injoko_close_history import apply_to_local_orders, import_reports
 
 PENDING_KEY = "injoko_close_history_import"
-FIELD_RE = re.compile(r"(?im)^\s*(TANGGAL|NIK|NAMA|TIKET\s*ID|NO\s*INET|SN\s*ONT\s*LAMA|SN\s*ONT\s*BARU|VALINS\s*ID|RESULT|KETERANGAN)\s*[:：=]\s*(.*)$")
+LABELS = ["TANGGAL", "NIK", "NAMA", "TIKET ID", "NO INET", "SN ONT LAMA", "SN ONT BARU", "VALINS ID", "RESULT", "KETERANGAN"]
+LABEL_RX = re.compile(r"(?i)(%s)\s*[:：=]" % "|".join(sorted(map(re.escape, LABELS), key=len, reverse=True)))
 
 
 def _flatten(value: Any) -> str:
@@ -35,26 +36,23 @@ def _parse_close_report(text: str) -> dict[str, str] | None:
     upper = normalized.upper()
     if "/REPORT" not in upper or "REPLACEMENT ONT" not in upper:
         return None
-    if not re.search(r"(?im)RESULT\s*[:：=]\s*CLOSE\b", normalized):
+    if not re.search(r"RESULT\s*[:：=]\s*CLOSE\b", normalized, re.I):
         return None
 
+    matches = list(LABEL_RX.finditer(normalized))
     fields: dict[str, str] = {}
-    for key, value in FIELD_RE.findall(normalized):
-        fields[re.sub(r"\s+", " ", key.upper()).strip()] = _clean(value)
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(normalized)
+        key = re.sub(r"\s+", " ", match.group(1).upper()).strip()
+        fields[key] = _clean(normalized[match.end():end])
 
     service = re.sub(r"\D", "", fields.get("NO INET", ""))
     if len(service) < 8 or not fields.get("NAMA"):
         return None
 
     ticket = fields.get("TIKET ID", "")
-    if re.match(r"^(?:NO INET|SN ONT LAMA|SN ONT BARU|VALINS ID)\s*[:：=]", ticket, re.I):
+    if ticket.upper() in {"MANUAL", "N/A", "NA", "NONE", "-"} or "NO INET" in ticket.upper():
         ticket = ""
-    if ticket.upper() in {"MANUAL", "N/A", "NA", "NONE", "-"}:
-        ticket = ""
-
-    valins = fields.get("VALINS ID", "")
-    if re.match(r"^(?:RESULT|KETERANGAN)\s*[:：=]", valins, re.I):
-        valins = ""
 
     return {
         "report_date": fields.get("TANGGAL", ""),
@@ -64,7 +62,7 @@ def _parse_close_report(text: str) -> dict[str, str] | None:
         "service_number": service,
         "old_sn": fields.get("SN ONT LAMA", ""),
         "new_sn": fields.get("SN ONT BARU", ""),
-        "valins_id": valins,
+        "valins_id": fields.get("VALINS ID", ""),
         "result": "CLOSE",
         "description": fields.get("KETERANGAN", ""),
     }
