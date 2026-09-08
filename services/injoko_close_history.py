@@ -29,6 +29,13 @@ CREATE INDEX IF NOT EXISTS idx_injoko_close_ticket ON injoko_close_reports(ticke
 """
 
 
+def _connect(database_path: Path) -> sqlite3.Connection:
+    conn = sqlite3.connect(database_path, timeout=30.0)
+    conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
 def _norm(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "").replace("\u00a0", " ")).strip()
 
@@ -43,7 +50,7 @@ def _ticket(value: Any) -> str:
 
 
 def ensure_table(database_path: Path) -> None:
-    with sqlite3.connect(database_path) as conn:
+    with _connect(database_path) as conn:
         conn.executescript(TABLE_SQL)
 
 
@@ -51,7 +58,7 @@ def import_reports(database_path: Path, reports: list[dict[str, Any]]) -> tuple[
     ensure_table(database_path)
     inserted = 0
     skipped = 0
-    with sqlite3.connect(database_path) as conn:
+    with _connect(database_path) as conn:
         for item in reports:
             service = re.sub(r"\D", "", _norm(item.get("service_number")))
             if len(service) < 8:
@@ -103,8 +110,7 @@ def import_json_file(database_path: Path, json_path: Path) -> tuple[int, int]:
 def apply_to_local_orders(database_path: Path) -> int:
     ensure_table(database_path)
     updated = 0
-    with sqlite3.connect(database_path) as conn:
-        conn.execute("PRAGMA busy_timeout=5000")
+    with _connect(database_path) as conn:
         rows = conn.execute(
             """
             SELECT o.id
@@ -128,7 +134,7 @@ def close_match(database_path: Path, ticket_id: str = "", service_number: str = 
     ensure_table(database_path)
     ticket = _ticket(ticket_id).upper()
     service = re.sub(r"\D", "", _norm(service_number))
-    with sqlite3.connect(database_path) as conn:
+    with _connect(database_path) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
             """
