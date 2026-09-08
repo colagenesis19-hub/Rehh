@@ -41,8 +41,9 @@
     const user=tgUser();if(!user?.id){applyRole('TECHNICIAN');return;}
     try{const r=await fetch('/api/technician-profile?telegram_id='+encodeURIComponent(user.id),{cache:'no-store'});const d=await r.json().catch(()=>({}));const profile=d?.profile||{};let role=normalizeRole(profile.role);const nik=String(profile.nik||profile.NIK||profile.nik_teknisi||profile.nikTeknisi||'').replace(/\D/g,'');if(nikRoleMap[nik])role=nikRoleMap[nik];try{const mr=await fetch('/api/technician-master?telegram_id='+encodeURIComponent(user.id),{cache:'no-store'});if(mr.ok){const md=await mr.json().catch(()=>({}));const masterRole=normalizeRole(md?.role);if(managerRoles.has(masterRole))role=masterRole;}}catch(e){}if(nikRoleMap[nik])role=nikRoleMap[nik];applyRole(role||'TECHNICIAN');protectManagerWorkflow();}catch(e){console.error('[INJOKO] role load failed',e);applyRole('TECHNICIAN');}
   }
+  function loadHsaUi(){if(window.__hsaUiLoaded)return;window.__hsaUiLoaded=true;const s=document.createElement('script');s.src='/hsa_injoko_ui.js?v=20260908';s.async=false;document.head.appendChild(s);}
   window.INJOKO_APPLY_BRANDING=applyBranding;window.INJOKO_APPLY_ROLE=applyRole;window.INJOKO_OPEN_ASSIGN_WO=openAssignWO;
-  function boot(){applyBranding();loadRole();setTimeout(()=>{applyBranding();protectManagerWorkflow();},700);}
+  function boot(){applyBranding();loadRole();loadHsaUi();setTimeout(()=>{applyBranding();protectManagerWorkflow();},700);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
   window.addEventListener('pageshow',()=>{applyBranding();loadRole();});
 })();
