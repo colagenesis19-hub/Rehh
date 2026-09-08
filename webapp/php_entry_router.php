@@ -140,6 +140,71 @@ function entry_json_response(mixed $payload,int $status=200):never{
     exit;
 }
 
+if($path==='/api/workflow-history' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='GET'){
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    try{
+        $raw=trim((string)($_GET['telegram_id']??''));
+        $service=trim((string)($_GET['service_number']??''));
+
+        if(!ctype_digit($raw)){
+            entry_json_response(['ok'=>false,'error'=>'telegram_id_required'],400);
+        }
+        if($service===''){
+            entry_json_response(['ok'=>false,'error'=>'service_number_required'],400);
+        }
+
+        $items=workflow_history((int)$raw,$service);
+        entry_json_response([
+            'ok'=>true,
+            'items'=>$items
+        ]);
+    }catch(Throwable $e){
+        error_log('[miniapp-php] workflow history GET: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
+        entry_json_response([
+            'ok'=>false,
+            'error'=>'internal_error',
+            'message'=>'History workflow gagal dimuat.'
+        ],500);
+    }
+}
+
+if($path==='/api/workflow-history' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    try{
+        $p=entry_input_json();
+        $raw=trim((string)($p['telegram_id']??''));
+        $historyId=(int)($p['history_id']??0);
+        $content=trim((string)($p['content']??''));
+
+        if(!ctype_digit($raw)){
+            entry_json_response(['ok'=>false,'error'=>'telegram_id_required'],400);
+        }
+        if($historyId<=0 || $content===''){
+            entry_json_response(['ok'=>false,'error'=>'invalid_request'],400);
+        }
+
+        $ok=update_history((int)$raw,$historyId,$content);
+
+        if(!$ok){
+            entry_json_response([
+                'ok'=>false,
+                'error'=>'history_not_found'
+            ],404);
+        }
+
+        entry_json_response(['ok'=>true]);
+    }catch(Throwable $e){
+        error_log('[miniapp-php] workflow history POST: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
+        entry_json_response([
+            'ok'=>false,
+            'error'=>'internal_error',
+            'message'=>'History workflow gagal disimpan.'
+        ],500);
+    }
+}
+
 if($path==='/api/workflow-complete' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
