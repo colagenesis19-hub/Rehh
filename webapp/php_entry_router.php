@@ -75,9 +75,13 @@ function hsa_injoko_data(bool $force=false): array {
 function hsa_injoko_reports(): array {
     if(!table_exists('injoko_close_reports'))return['ok'=>true,'summary'=>['today'=>0,'week'=>0,'all'=>0,'technicians'=>0],'leaders'=>[],'items'=>[]];
     $rows=db()->query("SELECT report_date,technician_nik,technician_name,ticket_id,service_number,old_sn,new_sn,valins_id,result,description FROM injoko_close_reports WHERE UPPER(TRIM(COALESCE(result,''))) IN ('CLOSE','CLOSED','DONE','SELESAI','COMPLETED') ORDER BY id DESC")->fetchAll();
-    $items=[];$seen=[];foreach($rows as $r){$k=trim((string)($r['technician_nik']??'')).'|'.trim((string)($r['service_number']??$r['ticket_id']??''));if($k==='|'||isset($seen[$k]))continue;$seen[$k]=1;$items[]=$r;}
-    $leaders=[];foreach($items as $r){$k=trim((string)$r['technician_nik']);$leaders[$k]??=['nik'=>$k,'name'=>(string)($r['technician_name']??''),'close'=>0];$leaders[$k]['close']++;}
-    return['ok'=>true,'summary'=>['today'=>0,'week'=>0,'all'=>count($items),'technicians'=>count($leaders)],'leaders'=>array_values($leaders),'items'=>$items];
+    $items=[];$seen=[];foreach($rows as $r){$nik=trim((string)($r['technician_nik']??''));$service=norm_key($r['service_number']??'');$ticket=norm_key($r['ticket_id']??'');$k=$nik.'|'.($service!==''?$service:$ticket);if($nik===''||($service===''&&$ticket==='')||isset($seen[$k]))continue;$seen[$k]=1;$r['_date']=injoko_history_date((string)($r['report_date']??''));$items[]=$r;}
+    $today=(new DateTimeImmutable('today'))->format('Y-m-d');[$weekStart,$weekEnd]=period_bounds(new DateTimeImmutable('today'));$weekStart=$weekStart->format('Y-m-d');$weekEnd=$weekEnd->format('Y-m-d');
+    $todayItems=[];$weekItems=[];$leaders=[];
+    foreach($items as $r){$date=(string)($r['_date']??'');if($date===$today)$todayItems[$r['_date'].'|'.($r['technician_nik']??'').'|'.($r['service_number']??$r['ticket_id']??'')]=1;if($date!==''&&$date>=$weekStart&&$date<=$weekEnd)$weekItems[$r['_date'].'|'.($r['technician_nik']??'').'|'.($r['service_number']??$r['ticket_id']??'')]=1;$k=trim((string)$r['technician_nik']);$leaders[$k]??=['nik'=>$k,'name'=>(string)($r['technician_name']??''),'close'=>0];$leaders[$k]['close']++;}
+    foreach($items as &$r)unset($r['_date']);unset($r);
+    usort($leaders,fn($a,$b)=>$b['close']<=>$a['close']?:strcmp($a['name'],$b['name']));
+    return['ok'=>true,'summary'=>['today'=>count($todayItems),'week'=>count($weekItems),'all'=>count($items),'technicians'=>count($leaders)],'leaders'=>array_values($leaders),'items'=>$items];
 }
 
 if($path==='/api/hsa-injoko-orders' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='GET'){
@@ -92,7 +96,7 @@ if($path==='/api/hsa-injoko-report' && strtoupper($_SERVER['REQUEST_METHOD']??'G
 if($path==='/api/dashboard' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='GET') {
     require_once __DIR__.'/php_dashboard_identity_readonly.php';
     header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-    try{$area=strtoupper(trim((string)($_GET['area']??'ALL')));$period=strtolower(trim((string)($_GET['period']??'daily')));$payload=($area==='ALL'||$area==='IJK')?load_injoko_dashboard_php($area,$period):load_dashboard_php($area,$period);echo json_encode(dashboard_identity_fill_missing_nik($payload),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}catch(Throwable $e){error_log('[miniapp-php] dashboard identity read: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());http_response_code(500);echo json_encode(['ok'=>false,'error'=>'internal_error','message'=>'Dashboard gagal dimuat.']);exit;}
+    try{$area=strtoupper(trim((string)($_GET['area']??'ALL')));$period=strtolower(trim((string)($_GET['period']??'daily')));$payload=($area==='ALL'||$area==='IJK')?load_injoko_dashboard_php($area,$period):load_dashboard_php($area,$period);echo json_encode(dashboard_identity_fill_missing_nik($payload),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}catch(Throwable $e){error_log('[miniapp-php] dashboard identity read: '.$e->getMessage().' @ '.$e->getLine());http_response_code(500);echo json_encode(['ok'=>false,'error'=>'internal_error','message'=>'Dashboard gagal dimuat.']);exit;}
 }
 
 if($path==='/api/technician' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')==='GET') {
