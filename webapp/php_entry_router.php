@@ -126,6 +126,12 @@ if($path==='/api/technician' && strtoupper($_SERVER['REQUEST_METHOD']??'GET')===
     require_once __DIR__.'/php_dashboard_identity_readonly.php';require_once __DIR__.'/php_technician_detail_readonly.php';header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     try{$key=trim((string)($_GET['key']??''));if($key===''){http_response_code(400);echo json_encode(['ok'=>false,'error'=>'key_required']);exit;}$area=strtoupper(trim((string)($_GET['area']??'ALL')));$payload=($area==='ALL'||$area==='IJK')?load_injoko_technician_detail_php($key,$area):technician_detail_readonly($key,$area);echo json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}catch(Throwable $e){error_log('[miniapp-php] technician detail canonical read: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());http_response_code(500);echo json_encode(['ok'=>false,'error'=>'internal_error','message'=>'Detail teknisi gagal dimuat.']);exit;}
 }
+function entry_input_json():array{
+    $raw=file_get_contents('php://input')?:'{}';
+    $data=json_decode($raw,true);
+    return is_array($data)?$data:[];
+}
+
 function entry_json_response(mixed $payload,int $status=200):never{
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -138,7 +144,7 @@ if($path==='/api/workflow-complete' && strtoupper($_SERVER['REQUEST_METHOD']??'G
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     try{
-        $result=complete_workflow(input_json());
+        $result=complete_workflow(entry_input_json());
         entry_json_response($result,($result['ok']??false)?200:400);
     }catch(Throwable $e){
         error_log('[miniapp-php] workflow complete: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
@@ -174,7 +180,7 @@ if($path==='/api/workflow-drafts' && strtoupper($_SERVER['REQUEST_METHOD']??'GET
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     try{
-        $result=save_workflow_draft(input_json());
+        $result=save_workflow_draft(entry_input_json());
         entry_json_response($result,($result['ok']??false)?200:400);
     }catch(Throwable $e){
         error_log('[miniapp-php] workflow drafts POST: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
