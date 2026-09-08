@@ -183,7 +183,11 @@ function assign_wo_list(int $telegramId): array {
         if(orderanku_sheet_bucket($row)!=='open') continue;
         $service=trim((string)($row['service_number']??''));
         if($service==='') continue;
-        $orders[$service]=array_merge($row,['assigned_technician'=>trim((string)($row['assigned_technician']??''))]);
+
+        $assigned=trim((string)($row['assigned_technician']??''));
+        if($assigned!=='') continue;
+
+        $orders[$service]=array_merge($row,['assigned_technician'=>'']);
     }
     $orders=array_values($orders);
     usort($orders,fn($a,$b)=>strnatcasecmp((string)($a['address']??''),(string)($b['address']??'')));
@@ -222,7 +226,13 @@ function assign_wo_apply(array $payload): array {
         $serviceKey=norm_key($service);
         if($service===''||!isset($wanted[$serviceKey]))continue;
         $current=trim((string)($row[$techCol]??''));
-        if($current!=='' && norm_name($current)!==norm_name((string)$target['canonical_name'])){$skipped[]=['service_number'=>$service,'assigned_technician'=>$current];continue;}
+        if($current!==''){
+            $skipped[]=[
+                'service_number'=>$service,
+                'assigned_technician'=>$current
+            ];
+            continue;
+        }
         assign_wo_write_cell($token,$spreadsheetId,$sheet['title'],assign_wo_col_letter($techCol).($i+1),(string)$target['canonical_name']);
         $found[]=$service;
         $order=['service_number'=>$service,'assigned_technician'=>(string)$target['canonical_name']];
