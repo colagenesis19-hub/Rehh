@@ -129,10 +129,53 @@ function orderanku_fetch_sheet(bool $force=false, ?string $csvUrl=null, ?string 
     return $out;
 }
 
+function orderanku_injoko_close_matches(): array {
+    static $loaded = false;
+    static $byService = [];
+    static $byTicket = [];
+    if ($loaded) return [$byService, $byTicket];
+    $loaded = true;
+    try {
+        if (!table_exists('injoko_close_reports')) return [$byService, $byTicket];
+        $rows = db()->query("SELECT service_number, ticket_id, result, report_date, technician_nik, technician_name, old_sn, new_sn, valins_id, description FROM injoko_close_reports WHERE UPPER(TRIM(result)) IN ('CLOSE','CLOSED','DONE','SELESAI','COMPLETED') ORDER BY id DESC")->fetchAll();
+        foreach ($rows as $r) {
+            $service = preg_replace('/\D+/', '', (string)($r['service_number'] ?? '')) ?: '';
+            $ticket = norm_key($r['ticket_id'] ?? '');
+            if ($service !== '' && !isset($byService[$service])) $byService[$service] = $r;
+            if ($ticket !== '' && !isset($byTicket[$ticket])) $byTicket[$ticket] = $r;
+        }
+    } catch (Throwable) {}
+    return [$byService, $byTicket];
+}
+
+function orderanku_apply_injoko_close_history(array $rows): array {
+    [$byService, $byTicket] = orderanku_injoko_close_matches();
+    if (!$byService && !$byTicket) return $rows;
+    foreach ($rows as $key => &$row) {
+        $service = preg_replace('/\D+/', '', (string)($row['service_number'] ?? '')) ?: '';
+        $ticket = norm_key($row['ticket_id'] ?? '');
+        $match = ($service !== '' && isset($byService[$service])) ? $byService[$service] : (($ticket !== '' && isset($byTicket[$ticket])) ? $byTicket[$ticket] : null);
+        if (!$match) continue;
+        $row['status'] = 'CLOSE';
+        $row['status_manual'] = 'CLOSE';
+        $row['status_injoko_history'] = 'CLOSE';
+        $row['close_report_date'] = (string)($match['report_date'] ?? '');
+        $row['close_technician_nik'] = (string)($match['technician_nik'] ?? '');
+        $row['close_technician_name'] = (string)($match['technician_name'] ?? '');
+        $row['close_old_sn'] = (string)($match['old_sn'] ?? '');
+        $row['close_new_sn'] = (string)($match['new_sn'] ?? '');
+        $row['close_valins_id'] = (string)($match['valins_id'] ?? '');
+        $row['close_description'] = (string)($match['description'] ?? '');
+    }
+    unset($row);
+    return $rows;
+}
+
 function orderanku_fetch_injoko_sheet(bool $force=false): array {
     // INJOKO has its own WO spreadsheet. This must not fall back to the
     // MYR/default sheet or to bot_settings.
-    return orderanku_fetch_sheet($force, orderanku_injoko_csv_url(), 'injoko-ijk-v1');
+    $rows = orderanku_fetch_sheet($force, orderanku_injoko_csv_url(), 'injoko-ijk-v1');
+    return orderanku_apply_injoko_close_history($rows);
 }
 
 function load_my_open_orders_fixed(int $telegramId, bool $force=false): array {
