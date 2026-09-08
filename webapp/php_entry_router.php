@@ -3,6 +3,29 @@
 declare(strict_types=1);
 
 $path=parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)?:'';
+
+// Fast path for the Mini App document and static assets.  Do this BEFORE
+// loading the database/Google-Sheet PHP modules below: Telegram WebView must
+// be able to receive index.html, JS and CSS without waiting for backend setup.
+function entry_serve_static(string $file):never{
+    $ext=strtolower(pathinfo($file,PATHINFO_EXTENSION));
+    $types=['html'=>'text/html; charset=utf-8','js'=>'application/javascript; charset=utf-8','css'=>'text/css; charset=utf-8','json'=>'application/json; charset=utf-8','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','ico'=>'image/x-icon'];
+    header('Content-Type: '.($types[$ext]??'application/octet-stream'));
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    readfile($file);
+    exit;
+}
+
+if($path==='/'||$path==='/index.html') entry_serve_static(__DIR__.'/index.html');
+
+if(!str_starts_with($path,'/api/') && $path!=='/health' && $path!=='/website' && $path!=='/website/' && $path!=='/login' && $path!=='/login/' && $path!=='/web' && $path!=='/web/') {
+    $candidate=realpath(__DIR__.$path);
+    $base=realpath(__DIR__);
+    if($candidate&&$base&&str_starts_with($candidate,$base.DIRECTORY_SEPARATOR)&&is_file($candidate)) entry_serve_static($candidate);
+}
+
 if($path==='/api/technician-profile') {
     require_once __DIR__.'/php_backend.php';
     require_once __DIR__.'/php_technician_master.php';
