@@ -3,3 +3,10 @@ secrets/
 evidence/
 __pycache__/
 *.pyc
+
+# Runtime data
+database/
+logs/
+
+# Local backup files
+*.bak
