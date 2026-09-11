@@ -238,21 +238,10 @@ function hsa_kecamatan_normalize(string $value): string {
 }
 
 function hsa_kecamatan_from_address(string $address, string $explicit=''): string {
+    // The INJOKO Order sheet is the source of truth. Use the Kecamatan
+    // value read from that sheet; do not invent a district from the address.
     $explicit = hsa_kecamatan_normalize($explicit);
-    $names = [
-        'ASEMROWO','BENOWO','BUBUTAN','BULAK','DUKUH PAKIS','GAYUNGAN','GENTENG','GUBENG',
-        'GUNUNG ANYAR','JAMBANGAN','KARANG PILANG','KENJERAN','KREMBANGAN','LAKARSANTRI','MULYOREJO',
-        'PABEAN CANTIAN','PAKAL','RUNGKUT','SAMBIKEREP','SAWAHAN','SEMAMPIR','SIMOKERTO','SUKOLILO',
-        'SUKOMANUNGGAL','TAMBAKSARI','TANDES','TEGALSARI','TENGGILIS MEJOYO','WIYUNG','WONOCOLO','WONOKROMO'
-    ];
-    if ($explicit !== '' && in_array($explicit, $names, true)) return $explicit;
-    $text = strtoupper(trim($address));
-    $text = preg_replace('/[^A-Z0-9 ]+/', ' ', $text) ?: '';
-    $text = ' '.trim(preg_replace('/\\s+/', ' ', $text) ?: '').' ';
-    foreach ($names as $name) {
-        if (str_contains($text, ' '.$name.' ')) return $name;
-    }
-    return 'LAINNYA';
+    return $explicit !== '' ? $explicit : 'TIDAK TERISI DI SHEET';
 }
 
 function load_hsa_order_map_php(bool $force=false): array {
