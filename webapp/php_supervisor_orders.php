@@ -228,3 +228,63 @@ function load_hsa_orders_from_sheet_php(bool $force=false): array {
         'areas'=>$areas
     ];
 }
+
+
+function hsa_kecamatan_normalize(string $value): string {
+    $v = strtoupper(trim($value));
+    $v = str_replace(['KECAMATAN','KEC.','KEC '], '', $v);
+    $v = preg_replace('/[^A-Z0-9 ]+/', ' ', $v) ?: '';
+    return trim(preg_replace('/\\s+/', ' ', $v) ?: '');
+}
+
+function hsa_kecamatan_from_address(string $address, string $explicit=''): string {
+    $explicit = hsa_kecamatan_normalize($explicit);
+    $names = [
+        'ASEMROWO','BENOWO','BUBUTAN','BULAK','DUKUH PAKIS','GAYUNGAN','GENTENG','GUBENG',
+        'GUNUNG ANYAR','JAMBANGAN','KARANG PILANG','KENJERAN','KREMBANGAN','LAKARSANTRI','MULYOREJO',
+        'PABEAN CANTIAN','PAKAL','RUNGKUT','SAMBIKEREP','SAWAHAN','SEMAMPIR','SIMOKERTO','SUKOLILO',
+        'SUKOMANUNGGAL','TAMBAKSARI','TANDES','TEGALSARI','TENGGILIS MEJOYO','WIYUNG','WONOCOLO','WONOKROMO'
+    ];
+    if ($explicit !== '' && in_array($explicit, $names, true)) return $explicit;
+    $text = strtoupper(trim($address));
+    $text = preg_replace('/[^A-Z0-9 ]+/', ' ', $text) ?: '';
+    $text = ' '.trim(preg_replace('/\\s+/', ' ', $text) ?: '').' ';
+    foreach ($names as $name) {
+        if (str_contains($text, ' '.$name.' ')) return $name;
+    }
+    return 'LAINNYA';
+}
+
+function load_hsa_order_map_php(bool $force=false): array {
+    $refs = orderanku_fetch_injoko_sheet($force);
+    $stats = [];
+    $orders = [];
+    $grand = ['open'=>0,'close'=>0,'update'=>0];
+    foreach ($refs as $row) {
+        $bucket = orderanku_sheet_bucket($row);
+        if (!isset($grand[$bucket])) $bucket = 'open';
+        $grand[$bucket]++;
+        $kec = hsa_kecamatan_from_address((string)($row['address'] ?? ''), (string)($row['kecamatan'] ?? ''));
+        if (!isset($stats[$kec])) $stats[$kec] = ['kecamatan'=>$kec,'total'=>0,'open'=>0,'close'=>0,'update'=>0,'success_rate'=>0];
+        $stats[$kec]['total']++;
+        $stats[$kec][$bucket]++;
+        $o = order_payload($row, 'INJOKO');
+        $o['status'] = trim((string)($row['status'] ?? 'OPEN')) ?: 'OPEN';
+        $o['bucket'] = $bucket;
+        $o['kecamatan'] = $kec;
+        $o['technician_name'] = trim((string)($row['assigned_technician'] ?? '')) ?: 'BELUM DIASSIGN';
+        $orders[] = $o;
+    }
+    foreach ($stats as &$s) $s['success_rate'] = $s['total'] > 0 ? round(($s['close'] / $s['total']) * 100, 1) : 0;
+    unset($s);
+    usort($stats, fn($a,$b) => ($b['total'] <=> $a['total']) ?: strcmp($a['kecamatan'],$b['kecamatan']));
+    usort($orders, fn($a,$b) => strcmp((string)$a['kecamatan'],(string)$b['kecamatan']) ?: strnatcasecmp((string)$a['address'],(string)$b['address']));
+    return [
+        'ok'=>true,
+        'source'=>'GOOGLE SHEETS INJOKO (LIVE)',
+        'total'=>$grand['open']+$grand['close']+$grand['update'],
+        'open'=>$grand['open'],'close'=>$grand['close'],'update'=>$grand['update'],
+        'kecamatan'=>$stats,'orders'=>$orders,
+        'polygon_source'=>'BIG • Batas Wilayah Administrasi Kecamatan'
+    ];
+}
