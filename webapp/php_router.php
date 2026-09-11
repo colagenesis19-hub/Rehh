@@ -27,7 +27,7 @@ if($path==='/website'||$path==='/website/'){if(!web_auth_current_user()){serve_s
 if($path==='/login'||$path==='/login/')serve_static_no_cache(__DIR__.'/web/login.html');
 if($path==='/web'||$path==='/web/'){if(!web_auth_current_user()){serve_static_no_cache(__DIR__.'/web/login.html');}require __DIR__.'/web/index.php';exit;}
 
-if(!str_starts_with($path,'/api/')&&$path!=='/health'){$candidate=realpath(__DIR__.$path);$base=realpath(__DIR__);if($candidate&&$base&&str_starts_with($candidate,$base.DIRECTORY_SEPARATOR)&&is_file($candidate))serve_static_no_cache($candidate);http_response_code(404);echo'Not Found';exit;}
+if(!str_starts_with($path,'/api/')&&$path!=='/health'){$candidate=realpath(__DIR__.$path);$base=realpath(__DIR__);$ext=strtolower(pathinfo($candidate?:$path,PATHINFO_EXTENSION));if($ext==='php'){http_response_code(404);echo'Not Found';exit;}if($candidate&&$base&&str_starts_with($candidate,$base.DIRECTORY_SEPARATOR)&&is_file($candidate))serve_static_no_cache($candidate);http_response_code(404);echo'Not Found';exit;}
 try{
  if($method==='GET'&&$path==='/health')respond(['ok'=>true,'backend'=>'php','php'=>PHP_VERSION,'database'=>db_path()]);
  if($method==='POST'&&$path==='/api/web-login'){$result=web_auth_login(input_json());respond($result,($result['ok']??false)?200:401);}
