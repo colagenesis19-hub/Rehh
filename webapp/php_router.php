@@ -39,6 +39,7 @@ try{
  if($method==='GET'&&$path==='/api/web-dashboard'){$user=web_auth_require_hsa();$result=load_hsa_injoko_dashboard_php((string)($_GET['period']??'daily'));$result['web_role']='HSA';$result['source']='INJOKO';respond($result);}
  if($method==='GET'&&$path==='/api/web-rca'){$user=web_auth_require_hsa();$result=load_hsa_injoko_rca_php();$result['source']='INJOKO';respond($result);}
  if($method==='GET'&&$path==='/api/web-orders'){$user=web_auth_require_hsa();$result=load_hsa_orders_from_sheet_php(((string)($_GET['force']??'0'))==='1');respond($result,($result['ok']??false)?200:500);}
+ if($method==='GET'&&$path==='/api/web-order-map'){$user=web_auth_require_hsa();$result=load_hsa_order_map_php(((string)($_GET['force']??'0'))==='1');respond($result,($result['ok']??false)?200:500);}
  if($method==='GET'&&$path==='/api/web-report'){$user=web_auth_require_hsa();$result=load_hsa_injoko_report_php(((string)($_GET['force']??'0'))==='1');respond($result,($result['ok']??false)?200:500);}
  // Mini App / Telegram API: tidak ada web_auth_require_hsa() di route umum.
  if($method==='GET'&&$path==='/api/dashboard')respond(load_dashboard_php((string)($_GET['area']??'ALL'),(string)($_GET['period']??'daily')));
