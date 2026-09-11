@@ -26,9 +26,9 @@ function ensureStyle(){
  document.head.appendChild(s);
 }
 function hideDashboardSections(){['dashboard','order'].forEach(id=>{const e=document.getElementById(id);if(e)e.dataset.navHidden='1';});}
-function restoreDashboard(){const page=$('#webPage');if(page)page.remove();$$('[data-nav-original]').forEach(e=>e.style.display='');}
+function restoreDashboard(){const page=$('#webPage');if(page)page.remove();const d=$('#dashboard');const o=$('#order');if(d)d.style.display='block';if(o)o.style.display='none';$('[data-nav-original]').forEach(e=>e.style.display='');}
 function pageShell(cfg){
- restoreDashboard(); ensureStyle();
+ restoreDashboard(); const d=$('#dashboard');const o=$('#order');if(d)d.style.display='none';if(o)o.style.display='none'; ensureStyle();
  const p=document.createElement('section');p.id='webPage';p.className='web-page';
  p.innerHTML='<div class="web-page-head"><div><h2>'+esc(cfg.title)+'</h2><p>'+esc(cfg.sub)+'</p></div><div class="web-page-actions"><button class="web-btn" id="webRefresh">↻ Refresh</button></div></div><div id="webPageBody"><div class="web-empty">Memuat data...</div></div>';
  document.querySelector('.main').appendChild(p); $('#webRefresh').onclick=()=>loadPage(cfg,true); return p;
@@ -85,6 +85,7 @@ function activate(label){
  if(window.innerWidth<=760)document.body.classList.remove('menu-open');
 }
 function bind(){
+ if(!document.documentElement.dataset.hsaNavCapture){document.documentElement.dataset.hsaNavCapture='1';document.addEventListener('click',e=>{const b=e.target.closest('.nav button[data-target]');if(!b)return;e.preventDefault();e.stopPropagation();activate(b.textContent.trim());},true);}
  document.querySelectorAll('.nav button[data-target]').forEach(b=>{
    if(b.dataset.webBound)return;b.dataset.webBound='1';
    b.addEventListener('click',e=>{e.preventDefault();activate(b.textContent.trim());});
