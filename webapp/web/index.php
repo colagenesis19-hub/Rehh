@@ -23,7 +23,13 @@ $user = web_auth_require_hsa();
 .mobile{display:none}
 </style>
 <script>
-window.MRO_INITIAL_USER = {"nik":"86240021","name":"HSA INJOKO","role":"HSA","telegram_id":0,"sto":"IJK"};
+window.MRO_INITIAL_USER = <?php echo json_encode([
+    'nik' => (string)($user['nik'] ?? ''),
+    'name' => (string)($user['name'] ?? 'HSA INJOKO'),
+    'role' => strtoupper((string)($user['role'] ?? 'HSA')),
+    'telegram_id' => (int)($user['telegram_id'] ?? 0),
+    'sto' => strtoupper((string)($user['sto'] ?? 'IJK')),
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 </script>
 </head>
 <body>
