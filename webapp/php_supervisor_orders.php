@@ -288,3 +288,17 @@ function load_hsa_order_map_php(bool $force=false): array {
         'polygon_source'=>'BIG • Batas Wilayah Administrasi Kecamatan'
     ];
 }
+
+
+function load_hsa_kecamatan_geojson_php(): array {
+    $cache='/tmp/kerja-bot-surabaya-kecamatan-geojson.json';
+    if(is_file($cache) && time()-filemtime($cache)<86400){$d=json_decode((string)file_get_contents($cache),true);if(is_array($d))return $d;}
+    $url='https://kspservices.big.go.id/satupeta/rest/services/PUBLIK/BATAS_WILAYAH/MapServer/3/query?where=wadmkk%3D%27Surabaya%27&outFields=wadmkc%2Cwadmkk%2Cwadmpr&returnGeometry=true&outSR=4326&f=geojson';
+    $ctx=stream_context_create(['http'=>['timeout'=>20,'header'=>"User-Agent: MR-O-Apps/1.0\r\n"]]);
+    $raw=@file_get_contents($url,false,$ctx);
+    if($raw===false||trim($raw)==='') return ['ok'=>false,'error'=>'kecamatan_polygon_unavailable','message'=>'Data polygon kecamatan dari BIG tidak dapat diambil.'];
+    $d=json_decode($raw,true);
+    if(!is_array($d)||!isset($d['features'])) return ['ok'=>false,'error'=>'kecamatan_polygon_invalid','message'=>'Format polygon kecamatan dari BIG tidak valid.'];
+    @file_put_contents($cache,json_encode($d,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+    return ['ok'=>true,'geojson'=>$d,'source'=>'BIG • Peta Wilayah Administrasi Kecamatan'];
+}
