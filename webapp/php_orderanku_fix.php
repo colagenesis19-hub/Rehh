@@ -113,6 +113,7 @@ function orderanku_fetch_sheet(bool $force=false, ?string $csvUrl=null, ?string 
             'new_sn' => norm($v['new_sn']),
             'ont_type' => norm($v['ont_type']),
             'sto' => norm($v['sto']),
+            'kecamatan' => norm($v['kecamatan']),
             'valins_id' => $v['valins_id'],
             'config_description' => $v['config_description'],
             'report_description' => $v['report_description'],
