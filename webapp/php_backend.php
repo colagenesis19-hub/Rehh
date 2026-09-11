@@ -104,6 +104,7 @@ function header_aliases(): array {
         'new_sn' => ['SN ONT NEW','SN ONT BARU','SN NEW','NEW SN','SN BARU','SERIAL NUMBER BARU'],
         'ont_type' => ['TYPE ONT','TIPE ONT','MODEL ONT','MODEL ONT BARU','TYPE ONT BARU','TIPE ONT BARU'],
         'sto' => ['STO','KODE STO'],
+        'kecamatan' => ['KECAMATAN','KEC','KECAMATAN PELANGGAN','KEC PELANGGAN','DISTRIK','DISTRICT'],
         'valins_id' => ['VALINS ID','ID VALINS','VALINS'],
         'config_description' => ['KETERANGAN CONFIG','KETERANGAN KONFIG','DESKRIPSI CONFIG','KET CONFIG'],
         'report_description' => ['KETERANGAN REPORT/STO','KETERANGAN REPORT','KETERANGAN STO','KET REPORT/STO','KET REPORT'],
