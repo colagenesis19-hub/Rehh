@@ -4,9 +4,20 @@
 
   const BOUNDARY_API = 'https://wilayah-id-web.gislabs.workers.dev/api/v1';
   const AREAS = [
-    { code: '357822', name: 'GAYUNGAN', keys: ['GAYUNGAN','DUKUH MENANGGAL','MENANGGAL','KETINTANG'] },
-    { code: '357823', name: 'JAMBANGAN', keys: ['JAMBANGAN','KARAH','KEBONSARI','PAGESANGAN'] },
-    { code: '357804', name: 'WONOKROMO', keys: ['WONOKROMO','WONOKROMO','PULO WONOKROMO','PULO TEGALSARI','KARANG REJO','JETIS KULON','SMEA'] }
+    { code: '3578030001', district: 'GAYUNGAN', name: 'DUKUH MENANGGAL', keys: ['DUKUH MENANGGAL'] },
+    { code: '3578030002', district: 'GAYUNGAN', name: 'MENANGGAL', keys: ['MENANGGAL'] },
+    { code: '3578030003', district: 'GAYUNGAN', name: 'GAYUNGAN', keys: ['GAYUNGAN'] },
+    { code: '3578030004', district: 'GAYUNGAN', name: 'KETINTANG', keys: ['KETINTANG'] },
+    { code: '3578020001', district: 'JAMBANGAN', name: 'PAGESANGAN', keys: ['PAGESANGAN'] },
+    { code: '3578020002', district: 'JAMBANGAN', name: 'KEBONSARI', keys: ['KEBONSARI'] },
+    { code: '3578020003', district: 'JAMBANGAN', name: 'JAMBANGAN', keys: ['JAMBANGAN'] },
+    { code: '3578020004', district: 'JAMBANGAN', name: 'KARAH', keys: ['KARAH'] },
+    { code: '3578110001', district: 'WONOKROMO', name: 'SAWUNGGALING', keys: ['SAWUNGGALING'] },
+    { code: '3578110002', district: 'WONOKROMO', name: 'WONOKROMO', keys: ['WONOKROMO'] },
+    { code: '3578110003', district: 'WONOKROMO', name: 'JAGIR', keys: ['JAGIR'] },
+    { code: '3578110004', district: 'WONOKROMO', name: 'NGAGEL REJO', keys: ['NGAGELREJO','NGAGEL REJO'] },
+    { code: '3578110005', district: 'WONOKROMO', name: 'NGAGEL', keys: ['NGAGEL'] },
+    { code: '3578110006', district: 'WONOKROMO', name: 'DARMO', keys: ['DARMO'] }
   ];
 
   function esc(v){return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -23,8 +34,12 @@
   }
   function areaFor(o){
     const a=norm(o.address || o.alamat || '');
-    for(const area of AREAS){
-      if(area.keys.some(k=>a.includes(k))) return area.name;
+    // INJOKO sheet already carries the administrative locality at the end of ALAMAT.
+    // Match the most specific locality first so NGAGELREJO is not swallowed by NGAGEL,
+    // and KEBONSARI/KETINTANG are not confused with similarly named streets.
+    const ordered=[...AREAS].sort((x,y)=>Math.max(...y.keys.map(k=>k.length))-Math.max(...x.keys.map(k=>k.length)));
+    for(const area of ordered){
+      if(area.keys.some(k=>new RegExp('(?:^|\\s)'+k.replace(/ /g,'\\\\s+')+'(?:\\s|$)').test(a))) return area.name;
     }
     return 'LAINNYA';
   }
@@ -76,7 +91,7 @@
       });
       const orders=Array.isArray(payload)?payload:(payload.orders||payload.data||[]);
       const stats={};
-      AREAS.forEach(a=>stats[a.name]={district:a.name,total:0,open:0,close:0,update:0,reject:0,success:0});
+      AREAS.forEach(a=>stats[a.name]={district:a.district,kelurahan:a.name,total:0,open:0,close:0,update:0,reject:0,success:0});
       orders.forEach(o=>{
         const name=areaFor(o);
         if(!stats[name]) return;
@@ -95,7 +110,7 @@
         const layer=L.geoJSON(feature,{style:{color:c,weight:2,fillColor:c,fillOpacity:.20}});
         layer.addTo(group); bounds.push(layer.getBounds());
         layer.bindTooltip(`${a.name} • ${s.success}% success`,{sticky:true,direction:'center'});
-        layer.bindPopup(`<div style="min-width:190px"><strong>📍 ${esc(a.name)}</strong><div style="margin-top:7px;line-height:1.7;font-size:11px">📋 TOTAL: <b>${s.total}</b><br>🟢 OPEN: <b>${s.open}</b><br>🔴 CLOSE: <b>${s.close}</b><br>🟡 UPDATE: <b>${s.update}</b><br>⚫ MENOLAK: <b>${s.reject}</b><br>📊 SUCCESS: <b>${s.success}%</b></div></div>`);
+        layer.bindPopup(`<div style="min-width:210px"><strong>📍 ${esc(a.name)}</strong><small style="display:block;color:#7890aa;margin-top:3px">Kecamatan ${esc(a.district)}</small><div style="margin-top:7px;line-height:1.7;font-size:11px">📋 TOTAL: <b>${s.total}</b><br>🟢 OPEN: <b>${s.open}</b><br>🔴 CLOSE: <b>${s.close}</b><br>🟡 UPDATE: <b>${s.update}</b><br>⚫ MENOLAK: <b>${s.reject}</b><br>📊 SUCCESS: <b>${s.success}%</b></div></div>`);
         layer.on('mouseover',()=>layer.setStyle({weight:3,fillOpacity:.34}));
         layer.on('mouseout',()=>layer.setStyle({weight:2,fillOpacity:.20}));
       });
@@ -105,12 +120,12 @@
         const s=stats[a.name], c=color(s.success);
         return `<div style="display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid #1d3a56;border-radius:11px;background:#081725">
           <span style="width:10px;height:10px;border-radius:50%;background:${c}"></span>
-          <span><b style="font-size:10px">${a.name}</b><small style="display:block;color:#71869f;font-size:8px;margin-top:2px">${s.close} close / ${s.total} total</small></span>
+          <span><b style="font-size:10px">${a.name}</b><small style="display:block;color:#71869f;font-size:8px;margin-top:2px">${a.district} • ${s.close} close / ${s.total} total</small></span>
           <b style="font-size:11px;color:${c}">${s.success}%</b>
         </div>`;
       }).join('');
       if(bounds.length) map.fitBounds(L.featureGroup(group.getLayers()).getBounds(),{padding:[18,18]});
-      const src=document.querySelector('#injokoMapSource'); if(src) src.textContent='SHEET • LIVE';
+      const src=document.querySelector('#injokoMapSource'); if(src) src.textContent=`SHEET • LIVE • ${AREAS.length} KELURAHAN`;
     }catch(e){
       console.error('INJOKO Area Success Map',e);
       const legend=document.querySelector('#injokoAreaMapLegend');
