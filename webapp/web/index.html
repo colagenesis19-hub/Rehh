@@ -54,5 +54,49 @@ async function load(){try{$('lastSync').textContent=new Date().toLocaleTimeStrin
 function showLogin(msg=''){$('loginView').classList.remove('hidden');$('app').classList.add('hidden');$('loginError').textContent=msg}function showApp(){$('loginView').classList.add('hidden');$('app').classList.remove('hidden');$('userName').textContent=me?.name||'Technician';$('userMeta').textContent=(me?.role||'HSA')+' • STO '+(me?.sto||'-');$('avatar').textContent=(me?.name||'M').slice(0,1).toUpperCase();load();}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{const d=await api('/api/web-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nik:$('nik').value.trim(),password:$('password').value})});me=d.user;showApp()}catch(err){$('loginError').textContent=err.message}});$('period').addEventListener('change',load);$('refresh').addEventListener('click',load);$('orderSearch').addEventListener('input',()=>orders(rows));$('globalSearch').addEventListener('input',()=>orders(rows));$('logout').addEventListener('click',async()=>{await fetch('/api/web-logout',{method:'POST',credentials:'same-origin'});showLogin()});$('menu').addEventListener('click',()=>document.body.classList.toggle('menu-open'));document.querySelectorAll('[data-target]').forEach(b=>b.addEventListener('click',()=>{const t=$(b.dataset.target);if(t)t.scrollIntoView({behavior:'smooth'});document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.body.classList.remove('menu-open')}));window.addEventListener('resize',()=>{drawTraffic();drawLines(dash?.trend||[])});(async()=>{try{const d=await api('/api/web-session');me=d.user;showApp()}catch{showLogin()}})();
 </script>
-<script src="/injoko_area_map.js?v=2"></script>\n</body>
+<script src="/injoko_area_map.js?v=2"></script>\n<!-- INJOKO AREA SUCCESS MAP -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<section id="injoko-area-success" style="margin-top:16px">
+  <div class="panel">
+    <div class="head"><strong>AREA SUCCESS MAP</strong><small>INJOKO</small></div>
+    <div id="injoko-map" style="height:430px;border-radius:12px;overflow:hidden"></div>
+    <div id="injoko-map-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px"></div>
+  </div>
+</section>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  const areas = [
+    {k:'Dukuh Menanggal', kec:'Gayungan', q:'Dukuh Menanggal Surabaya'},
+    {k:'Gayungan', kec:'Gayungan', q:'Gayungan Surabaya'},
+    {k:'Ketintang', kec:'Gayungan', q:'Ketintang Surabaya'},
+    {k:'Menanggal', kec:'Gayungan', q:'Menanggal Surabaya'},
+    {k:'Jambangan', kec:'Jambangan', q:'Jambangan Surabaya'},
+    {k:'Karah', kec:'Jambangan', q:'Karah Surabaya'},
+    {k:'Kebonsari', kec:'Jambangan', q:'Kebonsari Surabaya'},
+    {k:'Pagesangan', kec:'Jambangan', q:'Pagesangan Surabaya'}
+  ];
+  const map=L.map('injoko-map').setView([-7.33,112.72],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  const layer=L.layerGroup().addTo(map);
+  const summary=document.getElementById('injoko-map-summary');
+  function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function color(p){return p>=90?'#16a34a':p>=70?'#65a30d':p>=50?'#eab308':p>=30?'#f97316':'#dc2626';}
+  async function draw(){
+    for(const a of areas){
+      try{
+        const g=await fetch('https://nominatim.openstreetmap.org/search?format=json&polygon_geojson=1&limit=1&q='+encodeURIComponent(a.q)).then(r=>r.json());
+        if(!g[0]?.geojson) continue;
+        const pct=0;
+        const poly=L.geoJSON(g[0].geojson,{style:{color:color(pct),weight:2,fillOpacity:.42}});
+        poly.bindPopup('<b>'+esc(a.k)+'</b><br>Kecamatan '+esc(a.kec)+'<br><br><b>Success: '+pct+'%</b><br>Menunggu data statistik order INJOKO.');
+        poly.addTo(layer);
+      }catch(e){}
+    }
+  }
+  areas.forEach(a=>summary.insertAdjacentHTML('beforeend','<div style="padding:10px;border:1px solid #23507355;border-radius:10px"><b>'+esc(a.k)+'</b><br><small>Kec. '+esc(a.kec)+'</small></div>'));
+  draw();
+})();
+</script>
+</body>
 </html>
