@@ -421,6 +421,55 @@ def load_rca_summary(area: str) -> dict:
     }
 
 
+
+INJOKO_DISTRICT_ALIASES = {
+    "GAYUNGAN": ("GAYUNGAN", "KETINTANG", "DUKUH MENANGGAL"),
+    "JAMBANGAN": ("JAMBANGAN", "KARAH", "KEBONSARI", "PAGESANGAN"),
+    "WONOKROMO": ("WONOKROMO",),
+}
+
+def classify_injoko_district(address: str) -> str:
+    text = normalize_address(address)
+    if not text:
+        return "LAINNYA"
+    # Prefer the district/kelurahan tokens that identify the three INJOKO service districts.
+    for district, aliases in INJOKO_DISTRICT_ALIASES.items():
+        if any(re.search(rf"\\b{re.escape(alias)}\\b", text) for alias in aliases):
+            return district
+    return "LAINNYA"
+
+
+def load_injoko_area_map(force: bool = False) -> dict:
+    statuses = _configured_sheet_statuses(force=force)
+    summary = {
+        district: {"district": district, "open": 0, "close": 0, "update": 0, "menolak": 0, "total": 0}
+        for district in INJOKO_DISTRICT_ALIASES
+    }
+    references = sheet_ref.unique_reference_orders(statuses)
+
+    for reference in references:
+        district = classify_injoko_district(reference.address)
+        if district not in summary:
+            continue
+        bucket = sheet_status_bucket(reference)
+        item = summary[district]
+        item[bucket] = item.get(bucket, 0) + 1
+        item["total"] += 1
+
+    areas = []
+    for item in summary.values():
+        total = item["total"]
+        item["success"] = round(item["close"] * 100 / total, 1) if total else 0
+        areas.append(item)
+
+    return {
+        "ok": True,
+        "source": "Google Sheets INJOKO",
+        "areas": areas,
+        "total": sum(a["total"] for a in areas),
+    }
+
+
 def _technician_by_telegram_id(telegram_id: int) -> dict | None:
     with connect() as conn:
         row = conn.execute("SELECT telegram_id, nik, name, sto FROM technicians WHERE telegram_id=?", (telegram_id,)).fetchone()
@@ -534,6 +583,14 @@ class Handler(BaseHTTPRequestHandler):
             if not identity_key.startswith(("NIK:", "NAME:")):
                 identity_key = f"NIK:{_norm_nik(identity_key)}"
             self._send_json(load_technician(identity_key, area))
+            return
+        if route == "/api/injoko-area-map":
+            try:
+                payload = load_injoko_area_map(force=(query.get("force") or ["0"])[0] == "1")
+                self._send_json(payload)
+            except Exception as exc:
+                print(f"[miniapp] gagal membaca peta area INJOKO: {exc}")
+                self._send_json({"ok": False, "error": "sheet_error", "message": "Gagal membaca data area INJOKO."}, HTTPStatus.BAD_GATEWAY)
             return
         if route == "/api/my-open-orders":
             raw_id = (query.get("telegram_id") or [""])[0].strip()
