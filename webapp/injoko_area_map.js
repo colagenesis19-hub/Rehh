@@ -4,20 +4,15 @@
 
   const BOUNDARY_API = 'https://wilayah-id-web.gislabs.workers.dev/api/v1';
   const AREAS = [
-    { code: '3578030001', district: 'GAYUNGAN', name: 'DUKUH MENANGGAL', keys: ['DUKUH MENANGGAL'] },
-    { code: '3578030002', district: 'GAYUNGAN', name: 'MENANGGAL', keys: ['MENANGGAL'] },
-    { code: '3578030003', district: 'GAYUNGAN', name: 'GAYUNGAN', keys: ['GAYUNGAN'] },
-    { code: '3578030004', district: 'GAYUNGAN', name: 'KETINTANG', keys: ['KETINTANG'] },
-    { code: '3578020001', district: 'JAMBANGAN', name: 'PAGESANGAN', keys: ['PAGESANGAN'] },
-    { code: '3578020002', district: 'JAMBANGAN', name: 'KEBONSARI', keys: ['KEBONSARI'] },
-    { code: '3578020003', district: 'JAMBANGAN', name: 'JAMBANGAN', keys: ['JAMBANGAN'] },
-    { code: '3578020004', district: 'JAMBANGAN', name: 'KARAH', keys: ['KARAH'] },
-    { code: '3578110001', district: 'WONOKROMO', name: 'SAWUNGGALING', keys: ['SAWUNGGALING'] },
-    { code: '3578110002', district: 'WONOKROMO', name: 'WONOKROMO', keys: ['WONOKROMO'] },
-    { code: '3578110003', district: 'WONOKROMO', name: 'JAGIR', keys: ['JAGIR'] },
-    { code: '3578110004', district: 'WONOKROMO', name: 'NGAGEL REJO', keys: ['NGAGELREJO','NGAGEL REJO'] },
-    { code: '3578110005', district: 'WONOKROMO', name: 'NGAGEL', keys: ['NGAGEL'] },
-    { code: '3578110006', district: 'WONOKROMO', name: 'DARMO', keys: ['DARMO'] }
+    { code: '3578031001', district: 'GAYUNGAN', name: 'DUKUH MENANGGAL', keys: ['DUKUH MENANGGAL'] },
+    { code: '3578031002', district: 'GAYUNGAN', name: 'MENANGGAL', keys: ['MENANGGAL'] },
+    { code: '3578031003', district: 'GAYUNGAN', name: 'GAYUNGAN', keys: ['GAYUNGAN'] },
+    { code: '3578031004', district: 'GAYUNGAN', name: 'KETINTANG', keys: ['KETINTANG'] },
+    { code: '3578021001', district: 'JAMBANGAN', name: 'PAGESANGAN', keys: ['PAGESANGAN'] },
+    { code: '3578021002', district: 'JAMBANGAN', name: 'KEBONSARI', keys: ['KEBONSARI'] },
+    { code: '3578021003', district: 'JAMBANGAN', name: 'JAMBANGAN', keys: ['JAMBANGAN'] },
+    { code: '3578021004', district: 'JAMBANGAN', name: 'KARAH', keys: ['KARAH'] },
+    { code: '3578111002', district: 'WONOKROMO', name: 'WONOKROMO', keys: ['WONOKROMO'] }
   ];
 
   function esc(v){return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
