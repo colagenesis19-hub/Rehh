@@ -434,7 +434,7 @@ def classify_injoko_district(address: str) -> str:
         return "LAINNYA"
     # Prefer the district/kelurahan tokens that identify the three INJOKO service districts.
     for district, aliases in INJOKO_DISTRICT_ALIASES.items():
-        if any(re.search(rf"\\b{re.escape(alias)}\\b", text) for alias in aliases):
+        if any(re.search(rf"\b{re.escape(alias)}\b", text) for alias in aliases):
             return district
     return "LAINNYA"
 
