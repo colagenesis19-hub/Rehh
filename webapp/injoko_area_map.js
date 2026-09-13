@@ -39,7 +39,7 @@
     // and KEBONSARI/KETINTANG are not confused with similarly named streets.
     const ordered=[...AREAS].sort((x,y)=>Math.max(...y.keys.map(k=>k.length))-Math.max(...x.keys.map(k=>k.length)));
     for(const area of ordered){
-      if(area.keys.some(k=>new RegExp('(?:^|\\s)'+k.replace(/ /g,'\\\\s+')+'(?:\\s|$)').test(a))) return area.name;
+      if(area.keys.some(k=>new RegExp('(?:^|\\s)'+k.replace(/ /g,'\\s+')+'(?:\\s|$)').test(a))) return area.name;
     }
     return 'LAINNYA';
   }
@@ -51,7 +51,7 @@
   }
 
   async function boundary(code){
-    const r=await fetch(`${BOUNDARY_API}/boundaries/districts/${code}?geometry=true`,{cache:'force-cache'});
+    const r=await fetch(`${BOUNDARY_API}/boundaries/villages/${code}?geometry=true`,{cache:'force-cache'});
     if(!r.ok) throw new Error('Boundary '+code+' HTTP '+r.status);
     const j=await r.json();
     return j.data?.geometry ? {type:'Feature',properties:j.data,geometry:j.data.geometry} :
