@@ -67,14 +67,20 @@ $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{const 
 <script>
 (function(){
   const areas = [
-    {k:'Dukuh Menanggal', kec:'Gayungan', q:'Dukuh Menanggal Surabaya'},
-    {k:'Gayungan', kec:'Gayungan', q:'Gayungan Surabaya'},
-    {k:'Ketintang', kec:'Gayungan', q:'Ketintang Surabaya'},
-    {k:'Menanggal', kec:'Gayungan', q:'Menanggal Surabaya'},
-    {k:'Jambangan', kec:'Jambangan', q:'Jambangan Surabaya'},
-    {k:'Karah', kec:'Jambangan', q:'Karah Surabaya'},
-    {k:'Kebonsari', kec:'Jambangan', q:'Kebonsari Surabaya'},
-    {k:'Pagesangan', kec:'Jambangan', q:'Pagesangan Surabaya'}
+    {k:'Dukuh Menanggal',kec:'Gayungan',q:'Kelurahan Dukuh Menanggal, Surabaya'},
+    {k:'Gayungan',kec:'Gayungan',q:'Kelurahan Gayungan, Surabaya'},
+    {k:'Ketintang',kec:'Gayungan',q:'Kelurahan Ketintang, Surabaya'},
+    {k:'Menanggal',kec:'Gayungan',q:'Kelurahan Menanggal, Surabaya'},
+    {k:'Jambangan',kec:'Jambangan',q:'Kelurahan Jambangan, Surabaya'},
+    {k:'Karah',kec:'Jambangan',q:'Kelurahan Karah, Surabaya'},
+    {k:'Kebonsari',kec:'Jambangan',q:'Kelurahan Kebonsari, Surabaya'},
+    {k:'Pagesangan',kec:'Jambangan',q:'Kelurahan Pagesangan, Surabaya'},
+    {k:'Darmo',kec:'Wonokromo',q:'Kelurahan Darmo, Surabaya'},
+    {k:'Jagir',kec:'Wonokromo',q:'Kelurahan Jagir, Surabaya'},
+    {k:'Ngagel',kec:'Wonokromo',q:'Kelurahan Ngagel, Surabaya'},
+    {k:'Ngagel Rejo',kec:'Wonokromo',q:'Kelurahan Ngagel Rejo, Surabaya'},
+    {k:'Sawunggaling',kec:'Wonokromo',q:'Kelurahan Sawunggaling, Surabaya'},
+    {k:'Wonokromo',kec:'Wonokromo',q:'Kelurahan Wonokromo, Surabaya'}
   ];
   const map=L.map('injoko-map').setView([-7.33,112.72],13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
