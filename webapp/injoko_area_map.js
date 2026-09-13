@@ -4,9 +4,9 @@
 
   const API = 'https://wilayah-id-web.gislabs.workers.dev/api/v1';
   const AREAS = [
-    {code:'3578030', name:'GAYUNGAN'},
-    {code:'3578020', name:'JAMBANGAN'},
-    {code:'3578110', name:'WONOKROMO'}
+    {code:'357822', name:'GAYUNGAN'},
+    {code:'357823', name:'JAMBANGAN'},
+    {code:'357804', name:'WONOKROMO'}
   ];
 
   function injectAssets(){
