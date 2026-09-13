@@ -296,6 +296,8 @@ def sheet_status_bucket(reference: sheet_ref.ReferenceStatus) -> str:
     status = sheet_ref.normalize(reference.status)
     if status in CLOSED_STATUSES:
         return "close"
+    if status in {"MENOLAK", "MENOLAK ORDER", "REJECT", "REJECTED", "DITOLAK"}:
+        return "menolak"
     if status in UPDATE_STATUSES or "UPDATE" in status or "PROGRESS" in status:
         return "update"
     return "open"
